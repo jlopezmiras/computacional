@@ -1,0 +1,10 @@
+Planeta 	Periodo calculado	Periodo real	Diferencia	Diferencia relativa (%)
+
+Mercurio	84.8686          	88.0        	3.1314    	3.5584
+Venus   	223.216          	225.0       	1.784     	0.7929
+Tierra  	365.0512         	365.0       	-0.0512   	0.014
+Marte   	683.5992         	687.0       	3.4008    	0.495
+Jupiter 	4373.6395        	4333.0      	-40.6395  	0.9379
+Saturno 	11061.9829       	10759.0     	-302.9829 	2.8161
+Urano   	30512.0063       	30687.0     	174.9937  	0.5703
+Neptuno 	59681.2286       	60190.0     	508.7714  	0.8453
