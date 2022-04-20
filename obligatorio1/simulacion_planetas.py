@@ -283,7 +283,7 @@ if __name__=='__main__':
         # Guardo 1 de cada 100 pasos en el archivo para la animación posterior
         if contador%100==0:
             
-            np.savetxt(f, cambiarOrigen(r,2), delimiter=", ")
+            np.savetxt(f, r, delimiter=", ")
             f.write("\n")
 
         t+=h
