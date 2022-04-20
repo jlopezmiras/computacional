@@ -217,6 +217,16 @@ def calculaEnergia(m, v):
 
 
 
+# CAMBIAR EL ORIGEN DE LA VISUALIZAZCIÓN DEL SISTEMA
+def cambiarOrigen(r,n):
+
+    r0 = r[n]
+    rnuevo = np.zeros_like(r)
+    for i in range(len(r)):
+        rnuevo[i] = r[i]-r0
+
+    return rnuevo
+
 
 
 # PROGRAMA PRINCIPAL
@@ -241,7 +251,7 @@ if __name__=='__main__':
 
     # Se pueden modificar los datos iniciales para comprobar la estabilidad
     # scale_r = np.array([[1,0],[1.1,0],[1.2,0],[1.3,0],[1.4,0],[1.5,0],[1.6,0],[1.7,0]])
-    #r,v = comprobarEstabilidad(r,v) 
+    # r,v = comprobarEstabilidad(r,v) 
     
 
     f = open(fileout, "w")
@@ -269,10 +279,11 @@ if __name__=='__main__':
         calculaPeriodos(ypositiva_i,r,step_count,periodo_count)
         energia[contador] = calculaEnergia(m,v)
 
+
         # Guardo 1 de cada 100 pasos en el archivo para la animación posterior
         if contador%100==0:
             
-            np.savetxt(f, r, delimiter=", ")
+            np.savetxt(f, cambiarOrigen(r,2), delimiter=", ")
             f.write("\n")
 
         t+=h
