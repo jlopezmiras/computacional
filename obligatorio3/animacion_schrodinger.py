@@ -46,9 +46,9 @@ import io
 # Parámetros
 # ========================================
 file_in = "schrodinger_data.dat" # Nombre del fichero de datos
-file_out = "schrodinger_altura_0_3" # Nombre del fichero de salida (sin extensión)
+file_out = "schrodinger_altura_100" # Nombre del fichero de salida (sin extensión)
 interval = 50 # Tiempo entre fotogramas en milisegundos
-save_to_file = True # False: muestra la animación por pantalla,
+save_to_file = False # False: muestra la animación por pantalla,
                      # True: la guarda en un fichero
 dpi = 150 # Calidad del vídeo de salida (dots per inch)
 
@@ -90,8 +90,8 @@ fig, ax = plt.subplots(figsize=[6, 4])
 xmin = np.amin(frames_data[0][0])
 xmax = np.amax(frames_data[0][0])
 ymin = np.amin(frames_data[:,1:])
-ymax = np.amax(frames_data[:,1:])
-#ymax = 5
+#ymax = np.amax(frames_data[:,1:])
+ymax = 5
 ax.set_xlim(xmin, xmax)
 ax.set_ylim(ymin, ymax)
 

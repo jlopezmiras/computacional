@@ -1,5 +1,6 @@
 import numpy as np
 import math as m
+import matplotlib.pyplot as plt
 from numba import njit
 
 @njit
@@ -42,6 +43,7 @@ def schrodinger(N, nciclos, altura_potencial, steps):
 
 
 fout = "schrodinger_data.dat"
+graph_out = "norma_altura_potencial_0-3"
 
 N = 200
 nciclos = N/16
@@ -53,19 +55,27 @@ k0 = 2*m.pi*nciclos/N
 POTENCIAL = np.array([altura_potencial if (i>2*N/5 and i<3*N/5) else 0 for i in range(N+1)])
 
 
-phi1 = np.abs(schrodinger(N, nciclos, altura_potencial, NSTEPS))**2
-phi2 = np.abs(schrodinger(N, nciclos*2, altura_potencial, NSTEPS))**2 
-phi3 = np.abs(schrodinger(N, nciclos*4, altura_potencial, NSTEPS))**2 
+phi = np.abs(schrodinger(N, nciclos, altura_potencial, NSTEPS))**2
+#phi2 = np.abs(schrodinger(N, nciclos*2, altura_potencial, NSTEPS))**2 
+#phi3 = np.abs(schrodinger(N, nciclos*4, altura_potencial, NSTEPS))**2 
 x = np.arange(0,N+1)/N
 
-norma_phi1 = np.linalg.norm(phi1, axis=0)
-print(norma_phi1)
+norma_phi = np.meshgrid(x,np.sum(phi, axis=1))[1]
+norma_phi /= norma_phi[0,0]
+
 
 
 f = open(fout, "w")
 for i in range(NSTEPS+1):
-    vector_to_save = np.array(list(zip(x, POTENCIAL, phi1[i], phi2[i], phi3[i])))
+    vector_to_save = np.array(list(zip(x, POTENCIAL, phi[i], norma_phi[i])))
     np.savetxt(f,vector_to_save,delimiter=', ')
     f.write('\n')
 f.close()
+
+
+t = np.arange(0, NSTEPS+1)
+
+
+
+
 

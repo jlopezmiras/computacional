@@ -3,8 +3,7 @@ import math as m
 from numba import njit
 
 from matplotlib import pyplot as plt
-from matplotlib.animation import FuncAnimation
-from matplotlib.patches import Circle
+
 
 
 @njit
@@ -54,22 +53,8 @@ def Verlet(L, r, v, h, a):
     
     w = v + 0.5*h*a   
     r += h * w    # posiciones actualizadas de los planetas con paso h
-
-    # for i in range(len(r)):
-    #     if r[i,0] > L:
-    #         r[i,0] -= L
-    #     elif r[i,0] < 0:
-    #         r[i,0] += L
-
-    #     if r[i,1] > L:
-    #         r[i,1] -= L
-    #     elif r[i,1] < 0:
-    #         r[i,1] += L
-
-    r = r%L
-
+    r = r % L
     a = fuerza(L, r)   # aceleración actualizada a partir de las nuevas posiciones
-
     v = w + 0.5*h*a   # velocidades actualizadas con las nuevas aceleraciones
 
     return r,v,a
@@ -89,6 +74,8 @@ def posiciones_iniciales(N, L):
         for j in range(N-n*n):
             pos.append(np.array([n, j])*L/(n+2) + L/(n+2))
 
+    pos += np.random.uniform(-0.5, 0.5, (N,2))
+
     return np.array(pos)
 
 
@@ -106,9 +93,9 @@ if __name__=='__main__':
     L = 10.  # longitud de la caja
     N = 20   # número de partículas
     dt = 0.002    # paso temporal
+    tmax = 200   # tiempo total de simulación
 
     fout = "data.dat"
-    fout_extended = "data_extended.dat"
 
     # Posiciones iniciales aleatorias
     pos = posiciones_iniciales(N, L)
@@ -117,48 +104,66 @@ if __name__=='__main__':
     ang = np.random.uniform(0, 2*m.pi, N)
     vel = np.array(list(zip(np.cos(ang), np.sin(ang))))
 
+    # Cálculo de la aceleración inicial
+    acel = fuerza(L, pos)
+
     print("Posiciones")
     print(pos)
     print("Velocidades")
     print(vel)
-
-
-    f = open(fout, "w")
-    f_extended = open(fout_extended, "w")
-
-    tmax = 50
-    t = 0
-    contador = 0
-
-    acel = fuerza(L, pos)
-
     print("Aceleraciones")
     print(acel)
 
+    r_data = np.empty((int(tmax/dt)+1, N, 2))
+    v_data = np.empty((int(tmax/dt)+1, N, 2))
+
+    r_data[0] = pos
+    v_data[0] = vel
+    
+
+    
+    t = 0
+    contador = 0
+
+
+    
+    f = open(fout, "w")
     np.savetxt(f, pos, delimiter=", ")
     f.write("\n")
-
-    np.savetxt(f_extended, np.array(list(zip(pos,acel))).reshape((N,4)), delimiter=", ")
-    f_extended.write("\n")
 
 
     while t < tmax:
 
         pos, vel, acel = Verlet(L, pos, vel, dt, acel)
 
-        t += dt
+        r_data[contador+1] = pos
+        v_data[contador+1] = vel
 
-        if contador % 3 == 0:
+        if contador % 20 == 0:
 
             np.savetxt(f, pos, delimiter=", ")
             f.write("\n")
 
-            np.savetxt(f_extended, np.array(list(zip(pos,acel))).reshape((N,4)), delimiter=", ")
-            f_extended.write("\n")
-
+        t += dt
         contador += 1
 
     f.close()
+
+    energia_cin = 0.5 * np.sum(v_data[:,:,0]**2 + v_data[:,:,1]**2, axis=1)
+
+    dist_data = np.sqrt(r_data[:,:,0]**2 + r_data[:,:,1]**2)
+    energia_pot = 4 * np.sum(dist_data**(-12) - dist_data**(-6), axis=1)
+
+    t = np.arange(0,tmax+dt,dt)
+
+    plt.plot(t, energia_cin)
+
+    plt.show()
+
+    
+    
+
+
 
 
 
