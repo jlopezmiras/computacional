@@ -80,6 +80,30 @@ def posiciones_iniciales(N, L):
 
 
 
+@njit
+def calculo_energia_pot(L, r_data):
+
+    energia = np.zeros(len(r_data))
+
+    for time in range(len(r_data)):
+        r = r_data[time]
+        for i in range(len(r)):
+            for j in range(len(r)):
+
+                if j != i:
+                    r_ij_x = np.array([r[j,0]-r[i,0], r[j,0]-r[i,0]+L, r[j,0]-r[i,0]-L])
+                    r_ij_y = np.array([r[j,1]-r[i,1], r[j,1]-r[i,1]+L, r[j,1]-r[i,1]-L])
+
+                    r_ij = np.array([r_ij_x[np.argmin(np.abs(r_ij_x))], r_ij_y[np.argmin(np.abs(r_ij_y))]])
+
+                    dist = m.sqrt(r_ij[0]**2 + r_ij[1]**2)
+
+                    energia[time] += 4 * (dist**(-12) - dist**(-6))
+
+    return energia
+
+
+
 
 
 
@@ -93,7 +117,7 @@ if __name__=='__main__':
     L = 10.  # longitud de la caja
     N = 20   # número de partículas
     dt = 0.002    # paso temporal
-    tmax = 200   # tiempo total de simulación
+    tmax = 60   # tiempo total de simulación
 
     fout = "data.dat"
 
@@ -114,8 +138,8 @@ if __name__=='__main__':
     print("Aceleraciones")
     print(acel)
 
-    r_data = np.empty((int(tmax/dt)+1, N, 2))
-    v_data = np.empty((int(tmax/dt)+1, N, 2))
+    r_data = np.empty((round(tmax/dt)+1, N, 2))
+    v_data = np.empty((round(tmax/dt)+1, N, 2))
 
     r_data[0] = pos
     v_data[0] = vel
@@ -149,16 +173,26 @@ if __name__=='__main__':
 
     f.close()
 
-    energia_cin = 0.5 * np.sum(v_data[:,:,0]**2 + v_data[:,:,1]**2, axis=1)
 
-    dist_data = np.sqrt(r_data[:,:,0]**2 + r_data[:,:,1]**2)
-    energia_pot = 4 * np.sum(dist_data**(-12) - dist_data**(-6), axis=1)
+    energia_cin = 0.5 * np.sum(v_data[:,:,0]**2 + v_data[:,:,1]**2, axis=1)
+    energia_pot = calculo_energia_pot(L, r_data)
+    energia_tot = energia_cin + energia_pot
+
 
     t = np.arange(0,tmax+dt,dt)
 
-    plt.plot(t, energia_cin)
+    plt.plot(t, energia_cin, color="blue")
+    plt.plot(t, energia_pot, color="orange")
 
     plt.show()
+
+    plt.plot(t, energia_tot)
+
+    plt.show()
+
+    temp = np.average(energia_cin[round(20/dt):round(50/dt)])/N
+
+    print(temp)
 
     
     
