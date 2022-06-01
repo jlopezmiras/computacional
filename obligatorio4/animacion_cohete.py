@@ -48,7 +48,7 @@ import numpy as np
 # Parámetros
 # ========================================
 file_in = "cohete.dat" # Nombre del fichero de datos
-file_out = "animacion" # Nombre del fichero de salida (sin extensión)
+file_out = "cohete1" # Nombre del fichero de salida (sin extensión)
 
 # Límites de los ejes X e Y
 x_min = -1.8
@@ -56,11 +56,11 @@ x_max = 1.8
 y_min = -1.8
 y_max = 1.8
 
-interval = 10 # Tiempo entre fotogramas en milisegundos
+interval = 30 # Tiempo entre fotogramas en milisegundos
 show_trail = True # Muestra la "estela" del planeta
 trail_width = 0.3 # Ancho de la estela
 length_trail = 200
-save_to_file = False # False: muestra la animación por pantalla,
+save_to_file = True # False: muestra la animación por pantalla,
                      # True: la guarda en un fichero
 dpi = 150 # Calidad del vídeo de salida (dots per inch)
 

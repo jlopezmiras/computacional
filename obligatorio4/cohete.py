@@ -49,12 +49,12 @@ def runge_kutta_4(variables, t, h):
 # CONDICIONES INICIALES
 t = 0.
 r = RT/DTL
-#phi = m.pi/6
-#v = 11500/DTL
-#theta = m.pi/14
-phi = m.pi/3
-v = 11100/DTL
-theta = m.pi/4
+phi = m.pi/6
+v = 11500/DTL
+theta = m.pi/14
+# phi = m.pi/3
+# v = 11100/DTL
+# theta = m.pi/4
 p_r = v * m.cos(theta-phi)
 p_phi = r * v * m.sin(theta-phi)
 
@@ -63,7 +63,7 @@ variables = [r, phi, p_r, p_phi]
 
 # PARÁMETROS DE LA SIMULACIÓN
 h = 1
-iter = int(3e5)
+iter = int(1e5)
 contador = 0
 fout = "cohete.dat"
 
@@ -73,7 +73,7 @@ while (contador<iter):
 
     variables, t = runge_kutta_4(variables, t, h)
 
-    if contador%500 == 0:
+    if contador%100 == 0:
 
         r, phi = variables[0], variables[1]
         x_cohete, y_cohete = r*m.cos(phi), r*m.sin(phi)
