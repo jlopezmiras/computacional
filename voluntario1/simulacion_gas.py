@@ -204,7 +204,7 @@ if __name__=='__main__':
     t2 = round(50/dt)
     modulo_v = np.sqrt(v_data[t1:t2,:,0]**2 + v_data[t1:t2,:,1]**2).flatten()
 
-    n, bins, _ = plt.hist(modulo_v, bins='auto', color='#0504aa', alpha=0.7, rwidth=0.85)
+    n, bins, _ = plt.hist(modulo_v, bins=50, color='#0504aa', alpha=0.7, rwidth=0.85)
     plt.show()
     x = np.linspace(0, bins.max(), 1000)
     y = vel_distribution(x, temp) * np.sum(n)
