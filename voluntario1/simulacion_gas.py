@@ -1,9 +1,8 @@
 import numpy as np
 import math as m
 from numba import njit
-
+import pandas as pd
 from matplotlib import pyplot as plt
-
 
 
 @njit
@@ -103,8 +102,8 @@ def calculo_energia_pot(L, r_data):
     return energia
 
 
-
-
+def vel_distribution(v, temp):
+    return m.sqrt(2/m.pi) / temp**1.5 * v * v * np.exp(-v*v/(2*temp))
 
 
 
@@ -131,12 +130,12 @@ if __name__=='__main__':
     # Cálculo de la aceleración inicial
     acel = fuerza(L, pos)
 
-    print("Posiciones")
-    print(pos)
-    print("Velocidades")
-    print(vel)
-    print("Aceleraciones")
-    print(acel)
+    # print("Posiciones")
+    # print(pos)
+    # print("Velocidades")
+    # print(vel)
+    # print("Aceleraciones")
+    # print(acel)
 
     r_data = np.empty((round(tmax/dt)+1, N, 2))
     v_data = np.empty((round(tmax/dt)+1, N, 2))
@@ -181,18 +180,40 @@ if __name__=='__main__':
 
     t = np.arange(0,tmax+dt,dt)
 
-    plt.plot(t, energia_cin, color="blue")
-    plt.plot(t, energia_pot, color="orange")
+    plt.plot(t, energia_cin, color="blue", label="Energía cinética")
+    plt.plot(t, energia_pot, color="orange", label="Energía potencial")
+    plt.plot(t, energia_tot, color="green", label="Energía total")
+
+    plt.legend()
 
     plt.show()
-
-    plt.plot(t, energia_tot)
-
-    plt.show()
+    plt.savefig("grafica_energia")
 
     temp = np.average(energia_cin[round(20/dt):round(50/dt)])/N
 
     print(temp)
+
+
+    # HISTOGRAMAS
+    
+    # t=0
+
+
+    # t=20 - t=50
+    t1 = round(20/dt)
+    t2 = round(50/dt)
+    modulo_v = np.sqrt(v_data[t1:t2,:,0]**2 + v_data[t1:t2,:,1]**2).flatten()
+
+    n, bins, _ = plt.hist(modulo_v, bins='auto', color='#0504aa', alpha=0.7, rwidth=0.85)
+    plt.show()
+    x = np.linspace(0, bins.max(), 1000)
+    y = vel_distribution(x, temp) * np.sum(n)
+    print(np.sum(n))
+    plt.plot(x, y, color='black')
+    plt.show()
+
+
+
 
     
     
