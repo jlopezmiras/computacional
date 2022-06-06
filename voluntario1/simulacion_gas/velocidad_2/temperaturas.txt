@@ -1,0 +1,4 @@
+Temperatura de equipartición: 2.2557404307979376
+Temperatura ajustada a la distribución maxwell: 1.50383212523586
+Temperatura ajustada a la distribución normal (x): 2.0964953580976373
+Temperatura ajustada a la distribución normal (y): 2.414985503498237
