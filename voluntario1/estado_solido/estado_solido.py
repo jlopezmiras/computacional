@@ -83,7 +83,7 @@ def Verlet(L, r, v, h, a):
     return r,v,a
 
 
-def posiciones_iniciales(N, L, shape="aleatorio", minimum_distance=0.85, iter_max = 1e6):
+def posiciones_iniciales(N, L, shape="aleatorio", minimum_distance=0.8, iter_max = 2e6):
 
     n = int(m.sqrt(N))
 
@@ -114,6 +114,7 @@ def posiciones_iniciales(N, L, shape="aleatorio", minimum_distance=0.85, iter_ma
 
             # if iter % 100 == 0:
             #     print(len(pos))
+        print("hecho")
 
 
     elif shape == "cuadrado":
@@ -169,22 +170,17 @@ def calculo_energia_pot(L, r_data):
     return energia
 
 
-def grafica_energia(L, r, v, dt, tmax, name_graph):
+def grafica_temperatura(v, dt, tmax, name_graph):
 
-     # CÁLCULO DE LAS ENERGÍAS
     energia_cin = 0.5 * np.sum(v[:,:,0]**2 + v[:,:,1]**2, axis=1)
-    energia_pot = calculo_energia_pot(L, r)
-    energia_tot = energia_cin + energia_pot
-
-    # GRÁFICA DE LAS ENERGÍAS
     t = np.arange(0,tmax+dt,dt)
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
 
-    ax.plot(t, energia_cin, color="blue", label="Energía cinética")
-    ax.plot(t, energia_pot, color="orange", label="Energía potencial")
-    ax.plot(t, energia_tot, color="green", label="Energía total")
+    t = promedios_temporales(t, 300)
+    temperatura = promedios_temporales(energia_cin, 300)/N
+    ax.plot(t, temperatura, color="blue", label="Energía cinética")
 
     ax.grid("--", alpha=0.5)
 
@@ -196,6 +192,16 @@ def grafica_energia(L, r, v, dt, tmax, name_graph):
     T_equiparticion = np.average(energia_cin[round(20/dt):round(50/dt)])/N
 
     return T_equiparticion
+
+
+def promedios_temporales(x, n_puntos):
+
+    extra = len(x) % n_puntos
+    y_mod = x[0:-extra].reshape(-1, n_puntos).mean(axis=1)
+    y_extra = x[-extra:].mean()
+
+    return np.append(y_mod, y_extra)
+
 
 
 def histograma(v, T_equiparticion, distribution, name_graph, bins=50):
@@ -229,7 +235,7 @@ def histograma(v, T_equiparticion, distribution, name_graph, bins=50):
     return params[1]**2
 
 
-def main(L, N, dt, tmax, pos0, vel0, dir=None, freq=20):
+def main(L, N, dt, tmax, pos0, vel0, reduccion_velocidad=None, dir=None, freq=20):
 
     # Nombres de todos los archivos a guardar
     archivos = {
@@ -246,8 +252,8 @@ def main(L, N, dt, tmax, pos0, vel0, dir=None, freq=20):
 
 
     # Variables para almacenar los resultados
-    r_data = np.empty((round(tmax/dt)+1, N, 2))
-    v_data = np.empty((round(tmax/dt)+1, N, 2))
+    r_data = np.empty((round(tmax/dt)+2, N, 2))
+    v_data = np.empty((round(tmax/dt)+2, N, 2))
 
     r_data[0] = pos0
     v_data[0] = vel0
@@ -274,6 +280,14 @@ def main(L, N, dt, tmax, pos0, vel0, dir=None, freq=20):
         r_data[contador+1] = pos
         v_data[contador+1] = vel
 
+        if reduccion_velocidad:
+            reescalamiento, tiempos = reduccion_velocidad
+            for tiempo in tiempos:
+                if contador == int(tiempo/dt):
+                    vel /= reescalamiento
+                    print(f"reescalado en {tiempo}")
+
+
         # Escribir los datos en fichero (cada 10 pasos)
         if contador % freq == 0:
             np.savetxt(f, pos, delimiter=", ")
@@ -284,9 +298,7 @@ def main(L, N, dt, tmax, pos0, vel0, dir=None, freq=20):
 
     f.close()
 
-    T_equiparticion = grafica_energia(L, r_data, v_data, dt, tmax, name_graph=archivos["graph_energias"])
-
-    #print(f"Temperatura de equipartición: {T_equiparticion}")
+    T_equiparticion = grafica_temperatura(v_data, dt, tmax, name_graph=archivos["graph_energias"])
 
 
     # ----------- HISTOGRAMAS Y DISTRIBUCIONES DE VELOCIDADES ----------------
@@ -348,22 +360,26 @@ vel0 = np.zeros_like(pos0)
 
 dir = path + "red_cuadrada/"
 
-main(L, N, dt, tmax, pos0, vel0, dir=dir)
+#main(L, N, dt, tmax, pos0, vel0, dir=dir)
 
 
 # Cálculo de posiciones iniciales aleatorias y en reposo
-tmax = 100
+tmax = 200
+dt = 0.002
 pos0 = posiciones_iniciales(N, L, shape="aleatorio")
 
 dir = path + "posiciones_aleatorias/"
+reduccion_vel = (1.5, np.arange(20, 180, 20))
 
-#main(L, N, dt, tmax, pos0, vel0, dir=dir, freq=30)
+main(L, N, dt, tmax, pos0, vel0, reduccion_velocidad=reduccion_vel, dir=dir, freq=50)
 
 
 # Cálculo de posiciones iniciales en red hexagonal y en reposo
+tmax = 200
 dt = 0.0002
 pos0 = posiciones_iniciales(N, L, shape="hexagonal")
 
 dir = path + "red_hexagonal/"
+reduccion_vel = (1.5, np.arange(20, 180, 10))
 
-# main(L, N, dt, tmax, pos0, vel0, dir=dir, freq=700)
+main(L, N, dt, tmax, pos0, vel0, reduccion_velocidad=reduccion_vel, dir=dir, freq=80)

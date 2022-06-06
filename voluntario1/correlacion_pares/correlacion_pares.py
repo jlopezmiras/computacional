@@ -163,79 +163,18 @@ def promedios_temporales(x, n_puntos):
     return np.append(y_mod, y_extra)
 
 
-def grafica_energia(L, r, v, dt, tmax, name_graph):
+def calculo_temperatura(N, v, t1, t2, dt):
 
      # CÁLCULO DE LAS ENERGÍAS
     energia_cin = 0.5 * np.sum(v[:,:,0]**2 + v[:,:,1]**2, axis=1)
-    energia_pot = calculo_energia_pot(L, r)
-    energia_tot = energia_cin + energia_pot
 
-    # GRÁFICA DE LAS ENERGÍAS
-    t = np.arange(0,tmax+dt,dt)
-
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-
-    n_puntos = int(tmax / dt / 300)
-    t = promedios_temporales(t, n_puntos)
-    energia_cin = promedios_temporales(energia_cin, n_puntos)
-    energia_pot = promedios_temporales(energia_pot, n_puntos)
-    energia_tot = promedios_temporales(energia_tot, n_puntos)
-
-    ax.plot(t, energia_cin, color="blue", label="Energía cinética")
-    ax.plot(t, energia_pot, color="orange", label="Energía potencial")
-    ax.plot(t, energia_tot, color="green", label="Energía total")
-
-    ax.grid("--", alpha=0.5)
-
-    ax.legend(loc="best")
-    fig.savefig(name_graph)
-    # fig.show()
-
-    # CÁLCULO DE LA TEMPERATURA POR TEOREMA DE EQUIPARTICIÓN
-    T_equiparticion = np.average(energia_cin[round(20/dt):round(50/dt)])/N
+    T_equiparticion = np.average(energia_cin[round(t1/dt):round(t2/dt)])/N
 
     return T_equiparticion
 
 
-def grafica_desplazamiento_cuadrado(r_data, particulas, dt, tmax, name_graph):
 
-    t = np.arange(0, tmax+dt, dt)
-    
-
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-
-    if isinstance(particulas, list):
-        desplazamiento = r_data[:,particulas[0]] - r_data[:,particulas[1]]
-
-        plt.ylabel("$<(r_i-r_j)^2>$")
-        plt.title("Seaparación media cuadrática entre dos partículas")
-
-    else:
-        desplazamiento = r_data[:,particulas] - r_data[0,particulas,:]
-        
-        plt.ylabel("$<(r-r_0)^2>$")
-        plt.title("Desplazamiento medio cuadrado de una partícula")
-
-    desplazamiento_cuadrado = desplazamiento[:,0]**2 + desplazamiento[:,1]**2
-
-    # Hacemos medias para que los datos se visualicen mejor, de forma que solo
-    # se tengan 300 puntos
-    n_puntos = int(tmax / dt / 300)
-    t = promedios_temporales(t, n_puntos)
-    desplazamiento_cuadrado = promedios_temporales(desplazamiento_cuadrado, n_puntos)
-
-    ax.plot(t, desplazamiento_cuadrado)
-
-    plt.xlabel("Tiempo")
-    
-    plt.savefig(name_graph)
-
-    return
-
-
-def main(L, N, dt, tmax, pos0, vel0, cambio_velocidad=(1.2, 6), particula=0, tiempo_medida=40, 
+def main(L, N, dt, tmax, pos0, vel0, cambio_velocidad=(1.5, 6), particula=0, tiempo_medida=40, 
     archivos=None, dir="", freq=20):
 
     if dir!="":
@@ -244,11 +183,9 @@ def main(L, N, dt, tmax, pos0, vel0, cambio_velocidad=(1.2, 6), particula=0, tie
 
 
     # Variables para almacenar los resultados
-    r_data = np.empty((round(tmax/dt)+1, N, 2))
-    v_data = np.empty((round(tmax/dt)+1, N, 2))
+    v_data = np.empty((round(tmax/dt)+2, N, 2))
     correlacion = np.empty((round(tiempo_medida/dt/10), N-1))
 
-    r_data[0] = pos0
     v_data[0] = vel0
 
     # Cálculo de la aceleración inicial
@@ -258,6 +195,10 @@ def main(L, N, dt, tmax, pos0, vel0, cambio_velocidad=(1.2, 6), particula=0, tie
 
     pos = pos0
     vel = vel0
+
+    center_bins_tot = []
+    cuentas_tot = []
+    temp_tot = []
 
     for ii in range(n_veces):
         t = 0
@@ -270,27 +211,53 @@ def main(L, N, dt, tmax, pos0, vel0, cambio_velocidad=(1.2, 6), particula=0, tie
 
             # Guardar los datos
             # r_data[contador+1] = pos
-            # v_data[contador+1] = vel
+            v_data[contador+1] = vel
             if contador > (tmax-tiempo_medida)/dt and contador % 10 == 0:
                 for j in range(N-1):
-                    jj = (j - particula - 1) % N
-                    correlacion[subcontador, jj] = calcula_distancia(L, pos[particula], pos[jj])[0]
+                    jj = (particula + j + 1) % N
+                    correlacion[subcontador, j] = calcula_distancia(L, pos[particula], pos[jj])[0]
                 subcontador += 1
     
             t += dt
             contador += 1     
         
-        print(correlacion[0])
+        temp = calculo_temperatura(N, v_data, tmax-tiempo_medida, tmax, dt)
 
         fig = plt.figure()
         ax = fig.add_subplot(111)
 
-        ax.hist(correlacion.flatten(), bins=40, color='#0504aa', alpha=0.7, rwidth=0.85, density=True)
+        n, bins, _ = ax.hist(correlacion.flatten(), bins=40, 
+                    color='#0504aa', alpha=0.7, rwidth=0.85, density=True)
 
-        plt.show()
+        
+        center_bins = np.empty_like(n)
+
+        for k in range(len(n)):
+            center_bins[k] = (bins[k]+bins[k+1])/2
+        
+        
+        center_bins_tot.append(center_bins)
+        cuentas_tot.append(n)
+        temp_tot.append(temp)
+
+
+        plt.title(f"Función de correlación de pares (T={temp:.2f})")
+
+        plt.savefig(f"{path}funcion_correlacion_{ii+1}")
 
         vel *= reescalamiento
-   
+
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    for i in range(len(center_bins_tot)):
+        ax.plot(center_bins_tot[i], cuentas_tot[i], label=f"T = {temp_tot[i]:.2f}")
+
+    plt.title("Función de correlación de pares vs temperatura")
+
+    plt.legend(loc="best")
+
+    plt.savefig(f"{path}funcion_correlacion_temperatura")
 
 
 
@@ -319,10 +286,8 @@ archivos = {
 pos0 = posiciones_iniciales(N, L, shape="cuadrado")
 vel0 = np.zeros_like(pos0)
 
-dir = path + "transicion_rapida/"
-
 particula = 1
 #cambio_velocidad = (1.5, [20, 30, 35, 45])
 
-main(L, N, dt, tmax, pos0, vel0, archivos=archivos, dir=dir)
+main(L, N, dt, tmax, pos0, vel0, archivos=archivos, dir=path)
 

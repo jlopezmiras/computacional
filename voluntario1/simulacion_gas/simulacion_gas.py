@@ -160,9 +160,13 @@ def histograma(v, T_equiparticion, distribution, name_graph, bins=50):
 
     params = stats.fit(v, floc=0)
 
+    params2 = stats.fit(v)
+
     # Gráficas de las distribuciones
     ax.plot(x, stats.pdf(x, *params), color='orange', label=f"Distribucion {distribution} ajustada")
     ax.plot(x, stats.pdf(x, 0, m.sqrt(T_equiparticion)), color='black', label=f"Distribucion {distribution} T. equipartición")
+    ax.plot(x, stats.pdf(x, *params2), color='green', label=f"Distribucion {distribution} ajustada 2")
+
 
     ax.legend(loc="best")
     fig.savefig(name_graph)
