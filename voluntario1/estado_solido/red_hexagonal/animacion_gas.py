@@ -61,7 +61,7 @@ x_max = 4
 y_min = 0
 y_max = 4
 
-tmax = 200
+tmax = 160
 
 interval = 20 # Tiempo entre fotogramas en milisegundos
 show_trail = True # Muestra la "estela" del planeta
@@ -182,8 +182,17 @@ def update(j_frame, frames_data, planet_points, planet_trails, show_trail, lengt
 
         if show_trail:
             xs_old, ys_old = planet_trails[j_planet].get_data()
-            xs_new = np.append(xs_old, x)
-            ys_new = np.append(ys_old, y)
+            
+            try:
+                if abs(xs_old[-1]-x) < 3 and abs(ys_old[-1]-y) < 3:
+                    xs_new = np.append(xs_old, x)
+                    ys_new = np.append(ys_old, y)
+                else:
+                    xs_new = np.array([x])
+                    ys_new = np.array([y])
+            except:
+                    xs_new = np.append(xs_old, x)
+                    ys_new = np.append(ys_old, y) 
 
             if len(xs_new) > length_trail:
                 xs_new = np.delete(xs_new, 0)

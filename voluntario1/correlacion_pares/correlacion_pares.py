@@ -158,9 +158,8 @@ def promedios_temporales(x, n_puntos):
 
     extra = len(x) % n_puntos
     y_mod = x[0:-extra].reshape(-1, n_puntos).mean(axis=1)
-    y_extra = x[-extra:].mean()
 
-    return np.append(y_mod, y_extra)
+    return y_mod
 
 
 def calculo_temperatura(N, v, t1, t2, dt):
@@ -175,9 +174,9 @@ def calculo_temperatura(N, v, t1, t2, dt):
 
 
 def main(L, N, dt, tmax, pos0, vel0, cambio_velocidad=(1.5, 6), particula=0, tiempo_medida=40, 
-    archivos=None, dir="", freq=20):
+    archivos=None, dir=None, freq=20):
 
-    if dir!="":
+    if dir:
         for key in archivos.keys():     
             archivos[key] = dir + archivos[key]
 
@@ -240,10 +239,12 @@ def main(L, N, dt, tmax, pos0, vel0, cambio_velocidad=(1.5, 6), particula=0, tie
         cuentas_tot.append(n)
         temp_tot.append(temp)
 
+        plt.xlabel("r")
+        plt.ylabel("g(r)")
 
-        plt.title(f"Función de correlación de pares (T={temp:.2f})")
-
-        plt.savefig(f"{path}funcion_correlacion_{ii+1}")
+        plt.title(f"Función de correlación de pares (T={temp:.2f})", fontweight="bold")
+        name_graph = archivos["graph_funcion_correlacion"]
+        plt.savefig(f"{name_graph}_{ii+1}")
 
         vel *= reescalamiento
 
@@ -253,11 +254,13 @@ def main(L, N, dt, tmax, pos0, vel0, cambio_velocidad=(1.5, 6), particula=0, tie
     for i in range(len(center_bins_tot)):
         ax.plot(center_bins_tot[i], cuentas_tot[i], label=f"T = {temp_tot[i]:.2f}")
 
-    plt.title("Función de correlación de pares vs temperatura")
+    plt.xlabel("r")
+    plt.ylabel("g(r)")
+
+    plt.title(f"Función de correlación de pares vs temperatura \n (L={L:.2f}, N={N})", fontweight="bold")
 
     plt.legend(loc="best")
-
-    plt.savefig(f"{path}funcion_correlacion_temperatura")
+    plt.savefig(archivos["graph_funcion_correlacion_temperatura"])
 
 
 
@@ -275,11 +278,11 @@ N = 16   # número de partículas
 dt = 0.001    # paso temporal
 tmax = 60     # tiempo total de simulación
 
-# NOMBRES DE TODOS LOS ARCHIVOS A GUARADAR
+# NOMBRES DE TODOS LOS ARCHIVOS A GUARADAR  
 archivos = {
-    "fout" : "posiciones.dat",
-    "graph_energias" : "energias",
-    "graph_desplazamiento_cuadrado" : "desplazamiento_medio_cuadrado"
+    "graph_temperatura" : "temperatura",
+    "graph_funcion_correlacion" : "funcion_correlacion",
+    "graph_funcion_correlacion_temperatura" : "funcion_correlacion_temperatura"
     }
 
 # Cálculo de posiciones iniciales en red cuadrada y en reposo
@@ -291,3 +294,25 @@ particula = 1
 
 main(L, N, dt, tmax, pos0, vel0, archivos=archivos, dir=path)
 
+
+
+# Sistema gaseoso
+L = 10.
+N = 20
+
+pos0 = posiciones_iniciales(N, L, shape="aleatorio", minimum_distance=1.0)
+vel0 = np.random.uniform(-1, 1, pos0.shape)
+
+archivos = {
+    "graph_temperatura" : "temperatura",
+    "graph_funcion_correlacion" : "funcion_correlacion_gas",
+    "graph_funcion_correlacion_temperatura" : "funcion_correlacion_temperatura_gas"
+    }
+
+dir = path
+
+
+pos0 = posiciones_iniciales(N, L, shape="aleatorio", minimum_distance=1.0)
+vel0 = np.random.uniform(-1, 1, pos0.shape)
+
+main(L, N, dt, tmax, pos0, vel0, archivos=archivos, dir=dir)

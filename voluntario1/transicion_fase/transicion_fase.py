@@ -159,17 +159,14 @@ def promedios_temporales(x, n_puntos):
 
     extra = len(x) % n_puntos
     y_mod = x[0:-extra].reshape(-1, n_puntos).mean(axis=1)
-    y_extra = x[-extra:].mean()
 
-    return np.append(y_mod, y_extra)
+    return y_mod
 
 
-def grafica_energia(L, r, v, dt, tmax, name_graph):
+def grafica_temperatura(N, v, dt, tmax, name_graph):
 
      # CÁLCULO DE LAS ENERGÍAS
     energia_cin = 0.5 * np.sum(v[:,:,0]**2 + v[:,:,1]**2, axis=1)
-    energia_pot = calculo_energia_pot(L, r)
-    energia_tot = energia_cin + energia_pot
 
     # GRÁFICA DE LAS ENERGÍAS
     t = np.arange(0,tmax+dt,dt)
@@ -177,20 +174,21 @@ def grafica_energia(L, r, v, dt, tmax, name_graph):
     fig = plt.figure()
     ax = fig.add_subplot(111)
 
-    n_puntos = int(tmax / dt / 300)
-    t = promedios_temporales(t, n_puntos)
-    energia_cin = promedios_temporales(energia_cin, n_puntos)
-    energia_pot = promedios_temporales(energia_pot, n_puntos)
-    energia_tot = promedios_temporales(energia_tot, n_puntos)
+    t = promedios_temporales(t, n_puntos=500)
+    temperatura = promedios_temporales(energia_cin, n_puntos=500) / N
 
-    ax.plot(t, energia_cin, color="blue", label="Energía cinética")
-    ax.plot(t, energia_pot, color="orange", label="Energía potencial")
-    ax.plot(t, energia_tot, color="green", label="Energía total")
+    ax.plot(t, temperatura, color="blue")
 
     ax.grid("--", alpha=0.5)
 
-    ax.legend(loc="best")
+    plt.xlabel("Tiempo")
+    plt.ylabel("Temperatura")
+
+    plt.title("Evolución temporal de la temperatura", fontweight="bold")
+
+
     fig.savefig(name_graph)
+
     # fig.show()
 
     # CÁLCULO DE LA TEMPERATURA POR TEOREMA DE EQUIPARTICIÓN
@@ -211,23 +209,24 @@ def grafica_desplazamiento_cuadrado(r_data, particulas, dt, tmax, name_graph):
         desplazamiento = r_data[:,particulas[0]] - r_data[:,particulas[1]]
 
         plt.ylabel("$<(r_i-r_j)^2>$")
-        plt.title("Seaparación media cuadrática entre dos partículas")
+        plt.title("Separación media cuadrática entre dos átomos", fontweight="bold")
 
     else:
         desplazamiento = r_data[:,particulas] - r_data[0,particulas,:]
         
         plt.ylabel("$<(r-r_0)^2>$")
-        plt.title("Desplazamiento medio cuadrado de una partícula")
+        plt.title("Desplazamiento medio cuadrático de un átomo", fontweight="bold")
 
     desplazamiento_cuadrado = desplazamiento[:,0]**2 + desplazamiento[:,1]**2
 
     # Hacemos medias para que los datos se visualicen mejor, de forma que solo
     # se tengan 300 puntos
-    n_puntos = int(tmax / dt / 300)
-    t = promedios_temporales(t, n_puntos)
-    desplazamiento_cuadrado = promedios_temporales(desplazamiento_cuadrado, n_puntos)
+    t = promedios_temporales(t, n_puntos=500)
+    desplazamiento_cuadrado = promedios_temporales(desplazamiento_cuadrado, n_puntos=500)
 
-    ax.plot(t, desplazamiento_cuadrado)
+    ax.plot(t, desplazamiento_cuadrado, color="blue")
+
+    ax.grid("--", alpha=0.5)
 
     plt.xlabel("Tiempo")
     
@@ -295,7 +294,7 @@ def main(L, N, dt, tmax, pos0, vel0, cambio_velocidad=None, particula=0, archivo
 
     f.close()
 
-    T_equiparticion = grafica_energia(L, r_data, v_data, dt, tmax, name_graph=archivos["graph_energias"])
+    T_equiparticion = grafica_temperatura(N, v_data, dt, tmax, name_graph=archivos["graph_temperatura"])
 
     grafica_desplazamiento_cuadrado(real_r_data, particula, dt, tmax, name_graph=archivos["graph_desplazamiento_cuadrado"])
    
@@ -319,7 +318,7 @@ tmax = 60     # tiempo total de simulación
 # NOMBRES DE TODOS LOS ARCHIVOS A GUARADAR
 archivos = {
     "fout" : "posiciones.dat",
-    "graph_energias" : "energias",
+    "graph_temperatura" : "temperatura",
     "graph_desplazamiento_cuadrado" : "desplazamiento_medio_cuadrado"
     }
 
@@ -329,23 +328,24 @@ vel0 = np.zeros_like(pos0)
 
 dir = path + "transicion_rapida/"
 
-particula = 1
+particula = 4
 cambio_velocidad = (1.5, [20, 30, 35, 45])
 
-main(L, N, dt, tmax, pos0, vel0, cambio_velocidad, particula, archivos=archivos, dir=dir)
+
+# main(L, N, dt, tmax, pos0, vel0, cambio_velocidad, particula, archivos=archivos, dir=dir)
 
 
 # ---------------------- TRANSICIÓN LENTA -----------------------------
 
 archivos = {
     "fout" : "posiciones.dat",
-    "graph_energias" : "energias",
+    "graph_temperatura" : "temperatura",
     "graph_desplazamiento_cuadrado" : "separacion_media_cuadrada"
     }
 
 # AJUSTES DE LA SIMULACIÓN
 dt = 0.002    # paso temporal
-tmax = 360     # tiempo total de simulación
+tmax = 520     # tiempo total de simulación
 
 # Cálculo de posiciones iniciales en red cuadrada y en reposo
 pos0 = posiciones_iniciales(N, L, shape="cuadrado")
@@ -353,7 +353,7 @@ vel0 = np.zeros_like(pos0)
 
 dir = path + "transicion_lenta/"
 
-particula = [0,1]
-cambio_velocidad = (1.1, [60, 120, 180, 240, 300])
+particula = [1,2]
+cambio_velocidad = (1.1, [60, 120, 180, 240, 300, 360, 420, 480])
 
-main(L, N, dt, tmax, pos0, vel0, cambio_velocidad, particula, archivos=archivos, dir=dir, freq=40)
+main(L, N, dt, tmax, pos0, vel0, cambio_velocidad, particula, archivos=archivos, dir=dir, freq=60)

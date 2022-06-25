@@ -1,4 +1,11 @@
-Temperatura de equipartici贸n: 0.9380349857276912
-Temperatura ajustada a la distribuci贸n maxwell: 0.625355059939254
-Temperatura ajustada a la distribuci贸n normal (x): 0.9597449678578327
-Temperatura ajustada a la distribuci贸n normal (y): 0.9163250035975493
+Temperatura de equipartici髇: 0.6766011256260309
+
+Temperatura ajustada a la distribuci髇 maxwell 1: 0.45106397549151106
+Temperatura ajustada a la distribuci髇 maxwell 2: 0.5666948804721829
+
+Temperatura ajustada a la distribuci髇 normal 1 (x): 0.7306730528400237
+Temperatura ajustada a la distribuci髇 normal 2 (x): 0.7101315145749526
+
+Temperatura ajustada a la distribuci髇 normal 1 (y): 0.6225291984120379
+Temperatura ajustada a la distribuci髇 normal 2 (y): 0.6113255361576396
+

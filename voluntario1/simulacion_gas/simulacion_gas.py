@@ -24,12 +24,8 @@ def lennard_jones(L, r):
         for j in range(len(r)):
 
             if j != i:
-                r_ij_x = np.array([r[j,0]-r[i,0], r[j,0]-r[i,0]+L, r[j,0]-r[i,0]-L])
-                r_ij_y = np.array([r[j,1]-r[i,1], r[j,1]-r[i,1]+L, r[j,1]-r[i,1]-L])
-
-                r_ij = np.array([r_ij_x[np.argmin(np.abs(r_ij_x))], r_ij_y[np.argmin(np.abs(r_ij_y))]])
-
-                dist = m.sqrt(r_ij[0]**2 + r_ij[1]**2)
+                
+                dist, r_ij = calcula_distancia(L, r[j], r[i])
 
                 if dist < 3:
 
@@ -70,22 +66,62 @@ def Verlet(L, r, v, h, a):
     return r,v,a
 
 
-def posiciones_iniciales(N, L):
+def posiciones_iniciales(N, L, shape="aleatorio", minimum_distance=0.85, iter_max = 1e6):
 
     n = int(m.sqrt(N))
 
-    if n*n == N:
-       pos = [(np.array([i,j])*L/n + L/(2*n)) for i in range(n) for j in range(n)]
+    # Posiciones iniciales aleatorias. Hay que tener en cuenta que las partículas
+    # no pueden empezar muy juntas porque el potencial es altamente repulsivo para 
+    # distancias muy cortas
+    # Se añade un punto aleatorio y empieza un bucle en el que se genera un nuevo 
+    # punto aleatorio y si cumple la restricción de distancia mínima con todos
+    # los demás se añade. 
+    # Se realiza el bucle hasta que se añadan N puntos o, en caso de que no se pueda
+    # llevar a cabo debido a que la densidad de partículas sea muy grande, se llegue
+    # a un número máximo de iteraciones
+    if shape == "aleatorio":
+        
+        pos = [np.random.uniform(0, L, 2)]
+        iter = 0
+        while len(pos) < N and iter < iter_max:
+            pos_nueva = np.random.uniform(0, L, 2)
+            aceptado = True
+            for element in pos:
+                if calcula_distancia(L, pos_nueva, element)[0] < minimum_distance:
+                    aceptado = False
 
-    else:
-        pos = [np.array([i*L/(n+1) + L/(n+1)/2, j*L/n + L/(2*n)]) for i in range(n) for j in range(n)]
+            if aceptado:
+                pos.append(pos_nueva)
 
-        for j in range(N-n*n):
-            pos.append(np.array([n, j])*L/(n+1) + L/(n+1)/2)
+            iter += 1
 
-    pos += np.random.uniform(-0.5, 0.5, (N,2))
+    elif shape == "cuadrado":
+        pos = [(np.array([i,j])*L/n + L/(2*n)) for i in range(n) for j in range(n)]
+
+    elif shape == "hexagonal":
+        space_x = L / (n * 3)
+        space_y = L / n
+        pos = [(np.array([6*i, 2*j]) + 0.5) for i in range(n//2) for j in range(n//2)]
+        pos += [(np.array([6*i+2, 2*j]) + 0.5) for i in range(n//2) for j in range(n//2)]
+        pos += [(np.array([6*i+3, 2*j+1]) + 0.5) for i in range(n//2) for j in range(n//2)]
+        pos += [(np.array([6*i+5, 2*j+1]) + 0.5) for i in range(n//2) for j in range(n//2)]
+
+        pos = np.array(pos) * np.array([space_x, space_y])
 
     return np.array(pos)
+
+
+@njit
+def calcula_distancia(L, r1, r2):
+
+    r_ij_x = np.array([r1[0]-r2[0], r1[0]-r2[0]+L, r1[0]-r2[0]-L])
+    r_ij_y = np.array([r1[1]-r2[1], r1[1]-r2[1]+L, r1[1]-r2[1]-L])
+
+    r_ij = np.array([r_ij_x[np.argmin(np.abs(r_ij_x))], r_ij_y[np.argmin(np.abs(r_ij_y))]])
+
+    distancia = m.sqrt(r_ij[0]**2 + r_ij[1]**2)
+
+    return distancia, r_ij
 
 
 @njit
@@ -99,19 +135,26 @@ def calculo_energia_pot(L, r_data):
             for j in range(len(r)):
 
                 if j != i:
-                    r_ij_x = np.array([r[j,0]-r[i,0], r[j,0]-r[i,0]+L, r[j,0]-r[i,0]-L])
-                    r_ij_y = np.array([r[j,1]-r[i,1], r[j,1]-r[i,1]+L, r[j,1]-r[i,1]-L])
-
-                    r_ij = np.array([r_ij_x[np.argmin(np.abs(r_ij_x))], r_ij_y[np.argmin(np.abs(r_ij_y))]])
-
-                    dist = m.sqrt(r_ij[0]**2 + r_ij[1]**2)
+                    
+                    dist, _ = calcula_distancia(L, r[j], r[i])
 
                     energia[time] += 4 * (dist**(-12) - dist**(-6))
 
     return energia
 
 
-def grafica_energia(L, r, v, dt, tmax, name_graph):
+def promedios_temporales(x, n_puntos=300):
+
+    extra = len(x) % n_puntos
+    x_mod = x[0:-extra].reshape(-1, n_puntos).mean(axis=1)
+    x_mod = np.append(x[0], x_mod)
+    x_extra = x[-extra:].mean()
+
+    return np.append(x_mod, x_extra)
+
+
+
+def grafica_energia(L, r, v, dt, tmax, name_graph, v0):
 
      # CÁLCULO DE LAS ENERGÍAS
     energia_cin = 0.5 * np.sum(v[:,:,0]**2 + v[:,:,1]**2, axis=1)
@@ -124,13 +167,29 @@ def grafica_energia(L, r, v, dt, tmax, name_graph):
     fig = plt.figure()
     ax = fig.add_subplot(111)
 
-    ax.plot(t, energia_cin, color="blue", label="Energía cinética")
-    ax.plot(t, energia_pot, color="orange", label="Energía potencial")
-    ax.plot(t, energia_tot, color="green", label="Energía total")
+    ax.plot(t, energia_cin, color="orange", lw=0.7, alpha=0.75)
+    ax.plot(t, energia_pot, color="blue", lw=0.7, alpha=0.75)
+    ax.plot(t, energia_tot, color="#545454", lw=0.6, alpha=0.75)
+
+    n_puntos = int(4./dt)
+    t_m = promedios_temporales(t, n_puntos)
+    energia_cin_m = promedios_temporales(energia_cin, n_puntos)
+    energia_pot_m = promedios_temporales(energia_pot, n_puntos)
+    energia_tot_m = promedios_temporales(energia_tot, n_puntos)
+
+    ax.plot(t_m, energia_cin_m, color="orange", label="Energía cinética")
+    ax.plot(t_m, energia_pot_m, color="blue", label="Energía potencial")
+    ax.plot(t_m, energia_tot_m, color="#525558", label="Energía total")
 
     ax.grid("--", alpha=0.5)
 
-    ax.legend(loc="best")
+    plt.legend(loc="lower right")
+
+    plt.xlabel("Tiempo")
+    plt.ylabel("Energía")
+
+    plt.title(fr"Conservación de la energía $(v_0 = {v0:.0f})$", fontweight="bold")
+
     fig.savefig(name_graph)
     # fig.show()
 
@@ -140,39 +199,65 @@ def grafica_energia(L, r, v, dt, tmax, name_graph):
     return T_equiparticion
 
 
-def histograma(v, T_equiparticion, distribution, name_graph, bins=50):
+def histograma(vel0, v, T_equiparticion, distribution, name_graph, bins=30):
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
+    ax2 = ax.twinx()
 
     # Histograma de velocidades 
-    n, bins, _ = ax.hist(v, bins=40, color='#0504aa', alpha=0.7, rwidth=0.85, density=True)
+    n, bins, _ = ax.hist(v, bins=bins, color='#707070', alpha=0.7, rwidth=0.85, density=True, label="t=20-50")
+    ax2.hist(vel0, bins=7, color='#444444', alpha=0.75, density=False, rwidth=0.3, label="t=0")
 
     # Elegir distribución entre maxwell y normal
-    if distribution == "maxwell":
+    if distribution == "v":
         stats = maxwell
-        x = np.linspace(0, bins.max(), 1000)
-        plt.xlim(0, bins.max())
-    elif distribution == "norm":
+        x = np.linspace(0, bins.max(), 500)
+        ax.set_xlim(0, bins.max())
+        ax2.set_xlim(0, bins.max())
+        plt.title("Distribución del módulo de la velocidad", fontweight="bold")
+        loc="upper right"
+        ax.set_xlabel(r"$v$")
+        ax.set_ylabel(r"$P(v)$")
+        ax2.set_ylabel(r"$P(v_0)$")
+        ax2.bar(vel0[0], 20, width=0.018*bins.max(), color='#444444', alpha=0.75)
+
+    else:
         stats = norm
-        x = np.linspace(-bins.max(), bins.max(), 1000)
-        plt.xlim(-bins.max(), bins.max())
+        xmax = max(abs(bins.max()), abs(bins.min()))
+        x = np.linspace(-xmax, xmax, 500)
+        ax.set_xlim(-xmax, xmax)
+        ax2.set_xlim(-xmax, xmax)
+        ax2.set_ylim(0,20)
+        loc="lower center"
+
+        if distribution == "vx":
+            plt.title("Distribución de la componente x de la velocidad", fontweight="bold")
+            ax.set_xlabel(r"$v_x$")
+            ax.set_ylabel(r"$P(v_x)$")
+            ax2.set_ylabel(r"$P(v_{0x})$")
+        elif distribution == "vy":
+            plt.title("Distribución de la componente y de la velocidad", fontweight="bold")
+            ax.set_xlabel(r"$v_y$")
+            ax.set_ylabel(r"$P(v_y)$")
+            ax2.set_ylabel(r"$P(v_{0y})$")
 
     params = stats.fit(v, floc=0)
 
     params2 = stats.fit(v)
 
     # Gráficas de las distribuciones
-    ax.plot(x, stats.pdf(x, *params), color='orange', label=f"Distribucion {distribution} ajustada")
-    ax.plot(x, stats.pdf(x, 0, m.sqrt(T_equiparticion)), color='black', label=f"Distribucion {distribution} T. equipartición")
-    ax.plot(x, stats.pdf(x, *params2), color='green', label=f"Distribucion {distribution} ajustada 2")
+    ax.plot(x, stats.pdf(x, 0, m.sqrt(T_equiparticion)), color='#A42684', alpha=0.9,
+            label=f"Equip.")
+    ax.plot(x, stats.pdf(x, *params), color='orange', alpha=0.9, label=f"Ajuste A")
+    ax.plot(x, stats.pdf(x, *params2), color='green', alpha=0.9, label=f"Ajuste B")
 
+    fig.legend(loc='center left', bbox_to_anchor=(0.70, 0.73))
 
-    ax.legend(loc="best")
     fig.savefig(name_graph)
     # plt.show()
 
-    return params[1]**2
+    return params[1]**2, params2[1]**2
 
 
 def main(L, N, dt, tmax, pos0, vel0, dir=None):
@@ -181,6 +266,7 @@ def main(L, N, dt, tmax, pos0, vel0, dir=None):
     archivos = {
     "fout" : "posiciones.dat",
     "graph_energias" : "energias",
+    "graph_vel_inicial" : "velocidad_inicial",
     "graph_vel_modulo" : "velocidad_modulo",
     "graph_vel_x" : "velocidad_x",
     "graph_vel_y" : "velocidad_y",
@@ -230,7 +316,8 @@ def main(L, N, dt, tmax, pos0, vel0, dir=None):
 
     f.close()
 
-    T_equiparticion = grafica_energia(L, r_data, v_data, dt, tmax, name_graph=archivos["graph_energias"])
+    T_equiparticion = grafica_energia(L, r_data, v_data, dt, tmax, 
+            name_graph=archivos["graph_energias"], v0=m.sqrt(vel0[0,0]**2+vel0[0,1]**2))
 
     #print(f"Temperatura de equipartición: {T_equiparticion}")
 
@@ -238,6 +325,10 @@ def main(L, N, dt, tmax, pos0, vel0, dir=None):
     # ----------- HISTOGRAMAS Y DISTRIBUCIONES DE VELOCIDADES ----------------
     
     # t=0
+
+    modulo_v_ini = np.sqrt(vel0[:,0]**2 + vel0[:,1]**2).flatten()
+    v_x_ini = vel0[:,0].flatten()
+    v_y_ini = vel0[:,1].flatten()
 
 
     # t=20 - t=50
@@ -247,28 +338,35 @@ def main(L, N, dt, tmax, pos0, vel0, dir=None):
     # Módulo de la velocidad
 
     modulo_v = np.sqrt(v_data[t1:t2,:,0]**2 + v_data[t1:t2,:,1]**2).flatten()
-    T_ajustada1 = histograma(modulo_v, T_equiparticion, "maxwell", archivos["graph_vel_modulo"])
+    T_maxwell_1, T_maxwell_2 = histograma(modulo_v_ini, modulo_v, T_equiparticion, "v", archivos["graph_vel_modulo"])
     #print(f"Temperatura ajustada a la distribución maxwell: {T_ajustada1}")
 
 
     # Componentes de la velocidad
 
     v_x = v_data[t1:t2,:,0].flatten()
-    T_ajustada2 = histograma(v_x, T_equiparticion, "norm", archivos["graph_vel_x"])
+    T_norm_x_1, T_norm_x_2 = histograma(v_x_ini, v_x, T_equiparticion, "vx", archivos["graph_vel_x"])
     #print(f"Temperatura ajustada a la distribución normal (x): {T_ajustada2}")
     
     v_y = v_data[t1:t2,:,1].flatten()
-    T_ajustada3 = histograma(v_y, T_equiparticion, "norm", archivos["graph_vel_y"])
+    T_norm_y_1, T_norm_y_2 = histograma(v_y_ini, v_y, T_equiparticion, "vy", archivos["graph_vel_y"])
     #print(f"Temperatura ajustada a la distribución normal (y): {T_ajustada3}\n")
 
 
     with open(archivos["temperaturas"], "w") as f:
-        f.write(f"Temperatura de equipartición: {T_equiparticion}\n")
-        f.write(f"Temperatura ajustada a la distribución maxwell: {T_ajustada1}\n")
-        f.write(f"Temperatura ajustada a la distribución normal (x): {T_ajustada2}\n")
-        f.write(f"Temperatura ajustada a la distribución normal (y): {T_ajustada3}")
+        f.write(f"Temperatura de equipartición: {T_equiparticion}\n\n")
 
-    return
+        f.write(f"Temperatura ajustada a la distribución maxwell 1: {T_maxwell_1}\n")
+        f.write(f"Temperatura ajustada a la distribución maxwell 2: {T_maxwell_2}\n\n")
+
+
+        f.write(f"Temperatura ajustada a la distribución normal 1 (x): {T_norm_x_1}\n")
+        f.write(f"Temperatura ajustada a la distribución normal 2 (x): {T_norm_x_2}\n\n")
+
+        f.write(f"Temperatura ajustada a la distribución normal 1 (y): {T_norm_y_1}\n")
+        f.write(f"Temperatura ajustada a la distribución normal 2 (y): {T_norm_y_2}\n\n")
+
+    return [T_equiparticion, T_maxwell_1, T_maxwell_2, (T_norm_x_1+T_norm_y_1)/2, (T_norm_x_2+T_norm_y_2)/2]
 
 
 
@@ -290,36 +388,79 @@ if __name__=='__main__':
     tmax = 60     # tiempo total de simulación
 
     # Cálculo de posiciones iniciales aleatorias
-    pos0 = posiciones_iniciales(N, L)
+    pos0 = posiciones_iniciales(N, L, minimum_distance=1.0)
     
     # Ángulo inicial de velocidad aleatorio módulo 1
     ang = np.random.uniform(0, 2*m.pi, N)
     vel0 = np.array(list(zip(np.cos(ang), np.sin(ang))))
 
     dir = path + "/velocidad_1/"
-    main(L, N, dt, tmax, pos0, vel0, dir=dir)
+    temp1 = main(L, N, dt, tmax, pos0, vel0, dir=dir)
 
 
     # Ángulo inicial de velocidad aleatorio módulo 2
+    pos0 = posiciones_iniciales(N, L, minimum_distance=1.0)
     ang = np.random.uniform(0, 2*m.pi, N)
     vel0 = 2*np.array(list(zip(np.cos(ang), np.sin(ang))))
 
     dir = path + "/velocidad_2/"
-    main(L, N, dt, tmax, pos0, vel0, dir=dir)
+    temp2 = main(L, N, dt, tmax, pos0, vel0, dir=dir)
 
 
     # Ángulo inicial de velocidad aleatorio módulo 3
+    pos0 = posiciones_iniciales(N, L, minimum_distance=1.0)
     ang = np.random.uniform(0, 2*m.pi, N)
     vel0 = 3*np.array(list(zip(np.cos(ang), np.sin(ang))))
 
     dir = path + "/velocidad_3/"
-    main(L, N, dt, tmax, pos0, vel0, dir=dir)
+    temp3 = main(L, N, dt, tmax, pos0, vel0, dir=dir)
 
 
     # Ángulo inicial de velocidad aleatorio módulo 4
+    pos0 = posiciones_iniciales(N, L, minimum_distance=1.0)
     ang = np.random.uniform(0, 2*m.pi, N)
     vel0 = 4*np.array(list(zip(np.cos(ang), np.sin(ang))))
 
     dir = path + "/velocidad_4/"
-    main(L, N, dt, tmax, pos0, vel0, dir=dir)
+    temp4 = main(L, N, dt, tmax, pos0, vel0, dir=dir)
+
+
+    # Comparación de temperaturas
+
+    temperaturas = list(zip(temp1, temp2, temp3, temp4))
+
+    labels = ["T. equipartición",
+                "Distr. v (A)",
+                "Distr. v (B)",
+                "Distr. componente v (A)",
+                "Distr. componente v (B)"]
+
+    colors = ["#525558", "#ffa43a", "#ffbf75", "#759eff", "#75c7ff"]
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+
+    barWidth = 0.12
+
+    x = np.arange(len(temperaturas[0]))
+    plt.bar(x, temperaturas[0], color=colors[0], width=barWidth, edgecolor='grey', label=labels[0])
+
+    for i in range(len(temperaturas)-1):
+        x = [j + barWidth for j in x]
+        plt.bar(x, temperaturas[i+1], color=colors[i+1], width=barWidth, edgecolor ='grey', label=labels[i+1])
+
+    plt.xticks([r + 2*barWidth for r in range(len(temperaturas[0]))],
+        [1, 2, 3, 4])
+
+    plt.legend(loc="upper left")
+
+    plt.xlabel("Velocidad inicial")
+    plt.ylabel("Temperatura")
+
+    plt.title("Comparación de métodos de cálculo de temperatura", fontweight="bold")
+
+    plt.savefig(path + "/comparacion_temperaturas")
+
+
+
     

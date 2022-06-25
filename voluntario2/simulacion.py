@@ -1,3 +1,4 @@
+from dis import dis
 from time import time
 import numpy as np
 import matplotlib.pyplot as plt
@@ -169,7 +170,7 @@ p_phi = r * v * m.sin(theta-phi)
 
 cohete = [r, phi, p_r, p_phi]
 
-v_detonacion = 200/DTL
+v_detonacion = 70/DTL
 
 
 # Meteorito
@@ -184,7 +185,7 @@ meteorito = [r, phi, p_r, p_phi]
 
 # PARÁMETROS DE LA SIMULACIÓN
 h = 1
-iter = int(5e5)
+iter = int(1e6)
 contador = 0
 fout = "simulacion.dat"
 
@@ -239,6 +240,7 @@ while contador < iter and not aterrizaje:
         print("ATERRIZAJE")
         print(f"Distancia: {r_M}")
         print(f"Tiempo: {t}")
+        print(f"Distancia Tierra-meteorito: {meteorito[0]}")
         t_mision = t
         v_meteorito = np.array(vel_polares_to_cartesianas(*meteorito))
         v_cohete = np.array(vel_polares_to_cartesianas(*cohete))
@@ -272,50 +274,14 @@ while contador < iter and not aterrizaje:
     contador += 1
 
 
-if aterrizaje:
-
-    # Se divide en dos meteoritos
-    # Condiciones iniciales
-    r = meteorito[0]
-    phi = meteorito[1]
-    p_r = 0
-    p_phi_1 = v_detonacion*r*r
-    p_phi_2 = -v_detonacion*r*r
-
-    meteorito1 = [r, phi, p_r, p_phi_1]
-    meteorito2 = [r, phi, p_r, p_phi_2]
-
-    while contador < iter:
-
-        meteorito1, _ = runge_kutta_4_trozos(meteorito1, phi_L, t, h)
-        meteorito2, t = runge_kutta_4_trozos(meteorito2, phi_L, t, h)
-
-        if contador%600 == 0:
-
-            r_meteorito1, phi_meteorito1 = meteorito1[0], meteorito1[1]
-            x_meteorito1, y_meteorito1 = polares_to_cartesianas(r_meteorito1, phi_meteorito1)
-            r_meteorito2, phi_meteorito2 = meteorito2[0], meteorito2[1]
-            x_meteorito2, y_meteorito2 = polares_to_cartesianas(r_meteorito2, phi_meteorito2)
-            x_luna, y_luna = m.cos(phi_L+W*t), m.sin(phi_L+W*t)
-            f.write("0.0, 0.0\n")
-            f.write(f"{x_meteorito1}, {y_meteorito1}\n")
-            f.write(f"{x_meteorito2}, {y_meteorito2}\n")
-            f.write(f"{x_luna}, {y_luna}\n")
-            f.write('\n')
-        
-        contador += 1
-
-f.close()
-
-
 data_vr, data_vtheta, data_v = np.array(data_vr), np.array(data_vtheta), np.array(data_v)
 dist_meteorito = np.array(dist_meteorito)
-t = np.array([i for i in range(len(data_vr))])*150
+t_vector = np.array([i for i in range(len(data_vr))])*150
 
 fig, ax = plt.subplots()
-ax.plot(t, data_vr, label="vr")
-ax.plot(t, data_vtheta, label="vtheta")
-ax.plot(t, data_v, label="v")
+ax.plot(t_vector, data_vr, label="vr")
+ax.plot(t_vector, data_vtheta, label="vtheta")
+ax.plot(t_vector, data_v, label="v")
 
 plt.legend()
 
@@ -326,20 +292,101 @@ plt.close(fig)
 fig, ax = plt.subplots()
 plt.xlim(0, 125000)
 plt.ylim(0, 10)
-ax.plot(t, dist_meteorito)
+ax.plot(t_vector, dist_meteorito)
 plt.savefig("grafica_distancia_meteorito")
 # plt.show()
 plt.close(fig)
 
 
 fig, ax = plt.subplots()
-t = np.arange(-1, t_mision+1)
-ax.plot(t, gasto_energetico)
+t_vector = np.arange(-1, t_mision+1)
+ax.plot(t_vector, gasto_energetico)
 plt.savefig("grafica_gasto_energetico")
-plt.show()
-# plt.close(fig)
+# plt.show()
+plt.close(fig)
+
+
+
+if aterrizaje:
+
+    x_conteo = []
+
+    h = 1
+    iter = int(1e5)
+
+    for i in range(1):
+
+
+        contador = 0
+
+        # Se divide en dos meteoritos
+        # Condiciones iniciales
+        r = meteorito[0]
+        phi = meteorito[1]
+        p_r = meteorito[2]
+        p_phi_1 = v_detonacion*r*r
+        p_phi_2 = -v_detonacion*r*r
+
+        v_detonacion *= 1.2
+
+        meteorito1 = [r, phi, p_r, p_phi_1]
+        meteorito2 = [r, phi, p_r, p_phi_2]
+
+        distancia_Tierra_1 = [r]
+        distancia_Tierra_2 = [r]
+
+
+        while contador < iter:
+
+            meteorito1, _ = runge_kutta_4_trozos(meteorito1, phi_L, t, h)
+            meteorito2, t = runge_kutta_4_trozos(meteorito2, phi_L, t, h)
+
+            if contador%20 == 0:
+
+                distancia_Tierra_1.append(meteorito1[0])
+                distancia_Tierra_2.append(meteorito2[0])
+
+            if contador%150 == 0:
+
+                r_meteorito1, phi_meteorito1 = meteorito1[0], meteorito1[1]
+                x_meteorito1, y_meteorito1 = polares_to_cartesianas(r_meteorito1, phi_meteorito1)
+                r_meteorito2, phi_meteorito2 = meteorito2[0], meteorito2[1]
+                x_meteorito2, y_meteorito2 = polares_to_cartesianas(r_meteorito2, phi_meteorito2)
+                x_luna, y_luna = m.cos(phi_L+W*t), m.sin(phi_L+W*t)
+                f.write("0.0, 0.0\n")
+                f.write(f"{x_meteorito1}, {y_meteorito1}\n")
+                f.write(f"{x_meteorito2}, {y_meteorito2}\n")
+                f.write(f"{x_luna}, {y_luna}\n")
+                f.write('\n')
+                x_conteo.append(x_meteorito1)
+            
+            contador += 1
+
+
+        distancia_Tierra_1 = np.array(distancia_Tierra_1)
+        distancia_Tierra_2 = np.array(distancia_Tierra_2)
+        t_vector = np.array([i for i in range(len(distancia_Tierra_1))])*20
+
+        fig, ax = plt.subplots()
+        ax.plot(t_vector, distancia_Tierra_1)
+        ax.plot(t_vector, distancia_Tierra_2)
+        plt.savefig(f"grafica_trayectoria_trozos_{i+1}")
+        # plt.show()
+        plt.close(fig)
+
+        fig, ax = plt.subplots()
+        t_vector = np.array([i for i in range(len(x_conteo))])*150
+        ax.plot(t_vector, x_conteo)
+        plt.show()
+
+        print(f"Distancia minima: {min([min(distancia_Tierra_1), min(distancia_Tierra_2)])} \t velocidad: {v_detonacion/1.2*DTL}")
+
+f.close()
 
 # print(f"Minima distancia : t={t[np.argmin(dist_meteorito)]}, \t d={min(dist_meteorito)}")
 # print(f"Velocidad: {data_v[np.argmin(dist_meteorito)]}")
+
+
+
 
 

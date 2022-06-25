@@ -61,7 +61,7 @@ x_max = 4
 y_min = 0
 y_max = 4
 
-tmax = 200
+tmax = 120
 
 interval = 20 # Tiempo entre fotogramas en milisegundos
 show_trail = True # Muestra la "estela" del planeta

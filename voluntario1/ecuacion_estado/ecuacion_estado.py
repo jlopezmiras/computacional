@@ -162,9 +162,6 @@ def main(L, N, dt, tmax, pos0, vel0):
     T_equiparticion = np.average(energia_cin[round(20/dt):round(50/dt)])/N
     presion = np.average(presion_data[round(20/dt):round(50/dt)])
 
-    # print(f"Temperatura de equipartición: {T_equiparticion}")
-    # print(f"Presión: {presion}\n")
-
     return T_equiparticion, presion
 
 

@@ -114,7 +114,6 @@ def posiciones_iniciales(N, L, shape="aleatorio", minimum_distance=0.8, iter_max
 
             # if iter % 100 == 0:
             #     print(len(pos))
-        print("hecho")
 
 
     elif shape == "cuadrado":
@@ -122,11 +121,14 @@ def posiciones_iniciales(N, L, shape="aleatorio", minimum_distance=0.8, iter_max
 
     elif shape == "hexagonal":
         space_x = L / (n * 3)
-        space_y = L / n
-        pos = [(np.array([6*i, 2*j]) + 0.5) for i in range(n//2) for j in range(n//2)]
-        pos += [(np.array([6*i+2, 2*j]) + 0.5) for i in range(n//2) for j in range(n//2)]
-        pos += [(np.array([6*i+3, 2*j+1]) + 0.5) for i in range(n//2) for j in range(n//2)]
-        pos += [(np.array([6*i+5, 2*j+1]) + 0.5) for i in range(n//2) for j in range(n//2)]
+        space_y = space_x * m.sqrt(3) 
+        x_shift = 0.5
+        y_shift = (L-(n-1)*space_y) / 2 / space_y
+        shift = np.array([x_shift, y_shift])
+        pos = [(np.array([6*i+4, 2*j]) + shift) for i in range(n//2) for j in range(n//2)]
+        pos += [(np.array([6*i, 2*j]) + shift) for i in range(n//2) for j in range(n//2)]
+        pos += [(np.array([6*i+1, 2*j+1]) + shift) for i in range(n//2) for j in range(n//2)]
+        pos += [(np.array([6*i+3, 2*j+1]) + shift) for i in range(n//2) for j in range(n//2)]
 
         pos = np.array(pos) * np.array([space_x, space_y])
 
@@ -180,11 +182,16 @@ def grafica_temperatura(v, dt, tmax, name_graph):
 
     t = promedios_temporales(t, 300)
     temperatura = promedios_temporales(energia_cin, 300)/N
-    ax.plot(t, temperatura, color="blue", label="Energía cinética")
+    ax.plot(t, temperatura, color="blue", label="Temperatura")
 
     ax.grid("--", alpha=0.5)
 
-    ax.legend(loc="best")
+    plt.xlabel("Tiempo")
+    plt.ylabel("Temperatura")
+
+    plt.title("Evolución temporal de la temperatura", fontweight="bold")
+
+    # ax.legend(loc="best")
     fig.savefig(name_graph)
     # fig.show()
 
@@ -198,9 +205,8 @@ def promedios_temporales(x, n_puntos):
 
     extra = len(x) % n_puntos
     y_mod = x[0:-extra].reshape(-1, n_puntos).mean(axis=1)
-    y_extra = x[-extra:].mean()
 
-    return np.append(y_mod, y_extra)
+    return y_mod
 
 
 
@@ -240,7 +246,7 @@ def main(L, N, dt, tmax, pos0, vel0, reduccion_velocidad=None, dir=None, freq=20
     # Nombres de todos los archivos a guardar
     archivos = {
     "fout" : "posiciones.dat",
-    "graph_energias" : "energias",
+    "graph_temperatura" : "temperatura",
     "graph_vel_modulo" : "velocidad_modulo",
     "graph_vel_x" : "velocidad_x",
     "graph_vel_y" : "velocidad_y",
@@ -298,7 +304,7 @@ def main(L, N, dt, tmax, pos0, vel0, reduccion_velocidad=None, dir=None, freq=20
 
     f.close()
 
-    T_equiparticion = grafica_temperatura(v_data, dt, tmax, name_graph=archivos["graph_energias"])
+    T_equiparticion = grafica_temperatura(v_data, dt, tmax, name_graph=archivos["graph_temperatura"])
 
 
     # ----------- HISTOGRAMAS Y DISTRIBUCIONES DE VELOCIDADES ----------------
@@ -360,26 +366,26 @@ vel0 = np.zeros_like(pos0)
 
 dir = path + "red_cuadrada/"
 
-#main(L, N, dt, tmax, pos0, vel0, dir=dir)
+main(L, N, dt, tmax, pos0, vel0, dir=dir)
 
 
 # Cálculo de posiciones iniciales aleatorias y en reposo
-tmax = 200
+tmax = 120
 dt = 0.002
 pos0 = posiciones_iniciales(N, L, shape="aleatorio")
 
 dir = path + "posiciones_aleatorias/"
-reduccion_vel = (1.5, np.arange(20, 180, 20))
+reduccion_vel = (1.5, np.arange(20, 110, 20))
 
-main(L, N, dt, tmax, pos0, vel0, reduccion_velocidad=reduccion_vel, dir=dir, freq=50)
+main(L, N, dt, tmax, pos0, vel0, reduccion_velocidad=reduccion_vel, dir=dir, freq=30)
 
 
 # Cálculo de posiciones iniciales en red hexagonal y en reposo
-tmax = 200
-dt = 0.0002
+tmax = 160
+dt = 0.0005
 pos0 = posiciones_iniciales(N, L, shape="hexagonal")
 
 dir = path + "red_hexagonal/"
-reduccion_vel = (1.5, np.arange(20, 180, 10))
+reduccion_vel = (1.5, np.arange(20, 150, 10))
 
-main(L, N, dt, tmax, pos0, vel0, reduccion_velocidad=reduccion_vel, dir=dir, freq=80)
+main(L, N, dt, tmax, pos0, vel0, reduccion_velocidad=reduccion_vel, dir=dir, freq=70)
