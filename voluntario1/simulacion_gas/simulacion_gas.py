@@ -2,9 +2,7 @@ import os, os.path
 import numpy as np
 import math as m
 from numba import njit
-import pandas as pd
 from matplotlib import pyplot as plt
-from scipy.optimize import curve_fit
 from scipy.stats import norm, maxwell
 
 
@@ -14,7 +12,9 @@ def safe_open_w(path):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     return open(path, 'w')
 
-
+# Función que evalúa el potencial de lennard Jones dado el vector
+# r que almacena todas las posiciones de todas las partículas
+# Tiene en cuenta las condiciones de contorno periódicas
 @njit
 def lennard_jones(L, r):
 
@@ -38,27 +38,11 @@ def lennard_jones(L, r):
 
 
 # ALGORITMO DE VERLET (RESOLUCIÓN DE LA ECUACIÓN DIFERENCIAL)
-# --------------------------------------------------------------------------------------
-# Resuelve las ecuaciones del movimiento mediante el algoritmo de Verlet
-
-# Recibe la masa, la posición, la velocidad, el paso de tiempo y la aceleración:
-#   m (vector 1D: nplanets)   --> vector de la masa (reescalada) de cada planeta 
-#   r (vector 2D: nplanets,2) --> vector de vectores posicion (reescalados) de cada planeta 
-#   v (vector 2D: nplanets,2) --> vector de vectores velocidad (reescalados) de cada planeta 
-#   h (escalar)               --> paso de la simulación 
-#   a (vector 2D: nplanets,2) --> vector de vectores aceleración de cada planeta 
-#
-# Lleva a cabo el algoritmo de Verlet a partir de las posiciones, velocidades y aceleraciones calculadas
-# en el paso inmediatamente anterior y devolviendo las posiciones, velocidades y aceleraciones del 
-# paso siguiente
-# --------------------------------------------------------------------------------------
-# Utiliza el decorador @njit del módulo numba para ser compilado en tiempo real y 
-# mejorar el coste de tiempo
 @njit
 def Verlet(L, r, v, h, a):
     
     w = v + 0.5*h*a   
-    r += h * w    # posiciones actualizadas de los planetas con paso h
+    r += h * w    # posiciones actualizadas de las partículas con paso h
     r = r % L
     a = lennard_jones(L, r)   # aceleración actualizada a partir de las nuevas posiciones
     v = w + 0.5*h*a   # velocidades actualizadas con las nuevas aceleraciones
@@ -66,6 +50,8 @@ def Verlet(L, r, v, h, a):
     return r,v,a
 
 
+# Función para determinar las posiciones iniciales en función de si son aleatorias o 
+# se quieren en red cuadrada o hexagonal
 def posiciones_iniciales(N, L, shape="aleatorio", minimum_distance=0.85, iter_max = 1e6):
 
     n = int(m.sqrt(N))
@@ -111,6 +97,8 @@ def posiciones_iniciales(N, L, shape="aleatorio", minimum_distance=0.85, iter_ma
     return np.array(pos)
 
 
+# Función que calcula la distancia entre dos partículas en la caja con las condiciones de 
+# contorno periódicas
 @njit
 def calcula_distancia(L, r1, r2):
 
@@ -124,6 +112,9 @@ def calcula_distancia(L, r1, r2):
     return distancia, r_ij
 
 
+# Función que calcula la energía potencial dado el vector r que almacena todas las 
+# posiciones de todas las partículas
+# Tiene en cuenta las condiciones de contorno periódicas
 @njit
 def calculo_energia_pot(L, r_data):
 
@@ -143,6 +134,9 @@ def calculo_energia_pot(L, r_data):
     return energia
 
 
+
+# Función para calcular promedios de un vector x tomando intervalos con
+# un número determinado de puntos (n_puntos)
 def promedios_temporales(x, n_puntos=300):
 
     extra = len(x) % n_puntos
@@ -153,7 +147,7 @@ def promedios_temporales(x, n_puntos=300):
     return np.append(x_mod, x_extra)
 
 
-
+# Función para realizar la gráfica de las energías
 def grafica_energia(L, r, v, dt, tmax, name_graph, v0):
 
      # CÁLCULO DE LAS ENERGÍAS
@@ -199,6 +193,8 @@ def grafica_energia(L, r, v, dt, tmax, name_graph, v0):
     return T_equiparticion
 
 
+
+# Función para realizar los histogramas de las velocidades
 def histograma(vel0, v, T_equiparticion, distribution, name_graph, bins=30):
 
     fig = plt.figure()
@@ -260,6 +256,7 @@ def histograma(vel0, v, T_equiparticion, distribution, name_graph, bins=30):
     return params[1]**2, params2[1]**2
 
 
+# Función principal
 def main(L, N, dt, tmax, pos0, vel0, dir=None):
 
     # Nombres de todos los archivos a guardar
@@ -297,6 +294,7 @@ def main(L, N, dt, tmax, pos0, vel0, dir=None):
     pos = pos0
     vel = vel0
 
+    # Comienzo de la simulación
     while t < tmax:
 
         # Algoritmo de Verlet
@@ -319,7 +317,6 @@ def main(L, N, dt, tmax, pos0, vel0, dir=None):
     T_equiparticion = grafica_energia(L, r_data, v_data, dt, tmax, 
             name_graph=archivos["graph_energias"], v0=m.sqrt(vel0[0,0]**2+vel0[0,1]**2))
 
-    #print(f"Temperatura de equipartición: {T_equiparticion}")
 
 
     # ----------- HISTOGRAMAS Y DISTRIBUCIONES DE VELOCIDADES ----------------
@@ -339,20 +336,17 @@ def main(L, N, dt, tmax, pos0, vel0, dir=None):
 
     modulo_v = np.sqrt(v_data[t1:t2,:,0]**2 + v_data[t1:t2,:,1]**2).flatten()
     T_maxwell_1, T_maxwell_2 = histograma(modulo_v_ini, modulo_v, T_equiparticion, "v", archivos["graph_vel_modulo"])
-    #print(f"Temperatura ajustada a la distribución maxwell: {T_ajustada1}")
 
 
     # Componentes de la velocidad
 
     v_x = v_data[t1:t2,:,0].flatten()
     T_norm_x_1, T_norm_x_2 = histograma(v_x_ini, v_x, T_equiparticion, "vx", archivos["graph_vel_x"])
-    #print(f"Temperatura ajustada a la distribución normal (x): {T_ajustada2}")
     
     v_y = v_data[t1:t2,:,1].flatten()
     T_norm_y_1, T_norm_y_2 = histograma(v_y_ini, v_y, T_equiparticion, "vy", archivos["graph_vel_y"])
-    #print(f"Temperatura ajustada a la distribución normal (y): {T_ajustada3}\n")
 
-
+    # Se guradan las distintas temperaturas en un archivo
     with open(archivos["temperaturas"], "w") as f:
         f.write(f"Temperatura de equipartición: {T_equiparticion}\n\n")
 
@@ -461,6 +455,3 @@ if __name__=='__main__':
 
     plt.savefig(path + "/comparacion_temperaturas")
 
-
-
-    

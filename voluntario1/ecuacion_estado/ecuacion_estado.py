@@ -2,12 +2,12 @@ import os
 import numpy as np
 import math as m
 from numba import njit
-import pandas as pd
 from matplotlib import pyplot as plt
-from pyparsing import alphas
 from scipy.optimize import curve_fit
 
-
+# Función que evalúa el potencial de lennard Jones dado el vector
+# r que almacena todas las posiciones de todas las partículas
+# Tiene en cuenta las condiciones de contorno periódicas
 @njit
 def lennard_jones(L, r):
 
@@ -36,27 +36,11 @@ def lennard_jones(L, r):
 
 
 # ALGORITMO DE VERLET (RESOLUCIÓN DE LA ECUACIÓN DIFERENCIAL)
-# --------------------------------------------------------------------------------------
-# Resuelve las ecuaciones del movimiento mediante el algoritmo de Verlet
-
-# Recibe la masa, la posición, la velocidad, el paso de tiempo y la aceleración:
-#   m (vector 1D: nplanets)   --> vector de la masa (reescalada) de cada planeta 
-#   r (vector 2D: nplanets,2) --> vector de vectores posicion (reescalados) de cada planeta 
-#   v (vector 2D: nplanets,2) --> vector de vectores velocidad (reescalados) de cada planeta 
-#   h (escalar)               --> paso de la simulación 
-#   a (vector 2D: nplanets,2) --> vector de vectores aceleración de cada planeta 
-#
-# Lleva a cabo el algoritmo de Verlet a partir de las posiciones, velocidades y aceleraciones calculadas
-# en el paso inmediatamente anterior y devolviendo las posiciones, velocidades y aceleraciones del 
-# paso siguiente
-# --------------------------------------------------------------------------------------
-# Utiliza el decorador @njit del módulo numba para ser compilado en tiempo real y 
-# mejorar el coste de tiempo
 @njit
 def Verlet(L, r, v, h, a):
     
     w = v + 0.5*h*a   
-    r += h * w    # posiciones actualizadas de los planetas con paso h
+    r += h * w    # posiciones actualizadas de las partículas con paso h
     presion = calcula_presion(L, r, v, h)
     r = r % L
     a = lennard_jones(L, r)   # aceleración actualizada a partir de las nuevas posiciones
@@ -65,6 +49,7 @@ def Verlet(L, r, v, h, a):
     return r, v, a, presion
 
 
+# Función para calcular la presión cuando las partículas atraviesan las paredes
 @njit
 def calcula_presion(L, r, v, dt):
 
@@ -78,7 +63,8 @@ def calcula_presion(L, r, v, dt):
     return fuerza/dt/(4*L)
 
 
-
+# Función para determinar las posiciones iniciales en función de si son aleatorias o 
+# se quieren en red cuadrada o hexagonal
 def posiciones_iniciales(N, L):
 
     n = int(m.sqrt(N))
@@ -97,7 +83,9 @@ def posiciones_iniciales(N, L):
     return np.array(pos)
 
 
-
+# Función que calcula la energía potencial dado el vector r que almacena todas las 
+# posiciones de todas las partículas
+# Tiene en cuenta las condiciones de contorno periódicas
 @njit
 def calculo_energia_pot(L, r_data):
 
@@ -164,7 +152,7 @@ def main(L, N, dt, tmax, pos0, vel0):
 
     return T_equiparticion, presion
 
-
+# Función lineal para hacer el ajuste
 def linear(x, m, n):
     return m*x + n
 
@@ -206,6 +194,8 @@ if __name__=='__main__':
         presion.append(p)
 
         modulo += 0.3
+
+    # Ajuste y gráfica de la presión frente a la temperatura
 
     temperatura = np.array(temperatura)
     presion = np.array(presion)

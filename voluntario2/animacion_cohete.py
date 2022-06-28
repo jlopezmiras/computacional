@@ -59,7 +59,7 @@ y_max = 10
 interval = 30 # Tiempo entre fotogramas en milisegundos
 show_trail = True # Muestra la "estela" del planeta
 trail_width = 0.3 # Ancho de la estela
-length_trail = 200
+length_trail = 1000
 save_to_file = True # False: muestra la animación por pantalla,
                      # True: la guarda en un fichero
 dpi = 150 # Calidad del vídeo de salida (dots per inch)
@@ -67,9 +67,9 @@ dpi = 150 # Calidad del vídeo de salida (dots per inch)
 # Radio del planeta, en las mismas unidades que la posición
 # Puede ser un número (el radio de todos los planetas) o una lista con
 # el radio de cada uno
-planet_radius = 0.1 
+planet_radius = [0.2, 0.05, 0.05, 0.1]
 #planet_radius = [0.5, 0.7, 1.1]
-color = ["red", "blue", "green", "violet", "black"]
+color = ["#277BAD", "black", "black", "orange"]
 
 
 
@@ -138,7 +138,7 @@ ii = 0
 for planet_pos, radius in zip(frames_data[0], planet_radius):
     x, y = planet_pos
     #planet_point, = ax.plot(x, y, "o", markersize=10)
-    planet_point = Circle((x, y), radius)
+    planet_point = Circle((x, y), radius, color=color[ii])
     ax.add_artist(planet_point)
     planet_points.append(planet_point)
     ii += 1
@@ -154,7 +154,7 @@ for planet_pos, radius in zip(frames_data[0], planet_radius):
 def update(j_frame, frames_data, planet_points, planet_trails, show_trail, length_trail, time):
     # Actualiza la posición del correspondiente a cada planeta
 
-    ax.set_title(f"Tiempo: {time[j_frame]:.1f}")
+    ax.set_title(f"Tiempo: {time[j_frame]:.1f} h")
     plt.draw()
 
 
@@ -186,7 +186,7 @@ def init_anim():
 # Calcula el nº de frames
 nframes = len(frames_data)
 
-time = np.arange(0, nframes)*150
+time = np.arange(0, nframes)*150 / 3600
 
 # Si hay más de un instante de tiempo, genera la animación
 if nframes > 1:

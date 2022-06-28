@@ -1,20 +1,19 @@
 import os, os.path
 import numpy as np
 import math as m
-from numba import njit, jit
-import pandas as pd
+from numba import njit
 from matplotlib import pyplot as plt
-from scipy.optimize import curve_fit
-from scipy.stats import norm, maxwell
 
-
+# Función para abrir archivos y crear carpetas si no existen
 def safe_open_w(path):
     ''' Open "path" for writing, creating any parent directories as needed.
     ''' 
     os.makedirs(os.path.dirname(path), exist_ok=True)
     return open(path, 'w')
 
-
+# Función que evalúa el potencial de lennard Jones dado el vector
+# r que almacena todas las posiciones de todas las partículas
+# Tiene en cuenta las condiciones de contorno periódicas
 @njit
 def lennard_jones(L, r):
 
@@ -40,7 +39,8 @@ def lennard_jones(L, r):
 
     return acel
 
-
+# Función que calcula la distancia entre dos partículas en la caja con las condiciones de 
+# contorno periódicas
 @njit
 def calcula_distancia(L, r1, r2):
 
@@ -55,35 +55,20 @@ def calcula_distancia(L, r1, r2):
 
 
 # ALGORITMO DE VERLET (RESOLUCIÓN DE LA ECUACIÓN DIFERENCIAL)
-# --------------------------------------------------------------------------------------
-# Resuelve las ecuaciones del movimiento mediante el algoritmo de Verlet
-
-# Recibe la masa, la posición, la velocidad, el paso de tiempo y la aceleración:
-#   m (vector 1D: nplanets)   --> vector de la masa (reescalada) de cada planeta 
-#   r (vector 2D: nplanets,2) --> vector de vectores posicion (reescalados) de cada planeta 
-#   v (vector 2D: nplanets,2) --> vector de vectores velocidad (reescalados) de cada planeta 
-#   h (escalar)               --> paso de la simulación 
-#   a (vector 2D: nplanets,2) --> vector de vectores aceleración de cada planeta 
-#
-# Lleva a cabo el algoritmo de Verlet a partir de las posiciones, velocidades y aceleraciones calculadas
-# en el paso inmediatamente anterior y devolviendo las posiciones, velocidades y aceleraciones del 
-# paso siguiente
-# --------------------------------------------------------------------------------------
-# Utiliza el decorador @njit del módulo numba para ser compilado en tiempo real y 
-# mejorar el coste de tiempo
-@njit
 def Verlet(L, r, v, h, a, real_pos):
     
     w = v + 0.5*h*a   
-    r += h * w    # posiciones actualizadas de los planetas con paso h
+    r += h * w    # posiciones actualizadas de las partículas con paso h
     r = r % L
     a = lennard_jones(L, r)   # aceleración actualizada a partir de las nuevas posiciones
     v = w + 0.5*h*a   # velocidades actualizadas con las nuevas aceleraciones
-    real_pos += h * w
+    real_pos += h * w # la posición sin tener en cuenta condiciones de contorno
 
     return r, v, a, real_pos
 
 
+# Función para determinar las posiciones iniciales en función de si son aleatorias o 
+# se quieren en red cuadrada o hexagonal
 def posiciones_iniciales(N, L, shape="aleatorio", minimum_distance=0.85, iter_max = 1e6):
 
     n = int(m.sqrt(N))
@@ -130,31 +115,8 @@ def posiciones_iniciales(N, L, shape="aleatorio", minimum_distance=0.85, iter_ma
     return np.array(pos)
 
 
-@njit
-def calculo_energia_pot(L, r_data):
-
-    energia = np.zeros(len(r_data))
-
-    for time in range(len(r_data)):
-        r = r_data[time]
-        for i in range(len(r)):
-            for j in range(len(r)):
-
-                if j != i:
-
-                    dist, _ = calcula_distancia(L, r[i], r[j])
-                    # r_ij_x = np.array([r[j,0]-r[i,0], r[j,0]-r[i,0]+L, r[j,0]-r[i,0]-L])
-                    # r_ij_y = np.array([r[j,1]-r[i,1], r[j,1]-r[i,1]+L, r[j,1]-r[i,1]-L])
-
-                    # r_ij = np.array([r_ij_x[np.argmin(np.abs(r_ij_x))], r_ij_y[np.argmin(np.abs(r_ij_y))]])
-
-                    # dist = m.sqrt(r_ij[0]**2 + r_ij[1]**2)
-
-                    energia[time] += 4 * (dist**(-12) - dist**(-6))
-
-    return energia
-
-
+# Función para calcular promedios de un vector x tomando intervalos con
+# un número determinado de puntos (n_puntos)
 def promedios_temporales(x, n_puntos):
 
     extra = len(x) % n_puntos
@@ -162,7 +124,7 @@ def promedios_temporales(x, n_puntos):
 
     return y_mod
 
-
+# Función que realiza gráfica de la temperatura a lo largo del tiempo
 def grafica_temperatura(N, v, dt, tmax, name_graph):
 
      # CÁLCULO DE LAS ENERGÍAS
@@ -197,6 +159,9 @@ def grafica_temperatura(N, v, dt, tmax, name_graph):
     return T_equiparticion
 
 
+# Gráficas de los desplazamientos cuadrados. Si solo se da un número de partícula,
+# se realiza la gráfica de desplazamiento cuadrado. Si se dan dos, se realiza
+# la gráfica de separación cuadrática entre ambas
 def grafica_desplazamiento_cuadrado(r_data, particulas, dt, tmax, name_graph):
 
     t = np.arange(0, tmax+dt, dt)
@@ -205,12 +170,14 @@ def grafica_desplazamiento_cuadrado(r_data, particulas, dt, tmax, name_graph):
     fig = plt.figure()
     ax = fig.add_subplot(111)
 
+    # Separación cuadrática si hay dos partículas (la variable partículas es una lista)
     if isinstance(particulas, list):
         desplazamiento = r_data[:,particulas[0]] - r_data[:,particulas[1]]
 
         plt.ylabel("$<(r_i-r_j)^2>$")
         plt.title("Separación media cuadrática entre dos átomos", fontweight="bold")
 
+    # Desplazamiento cuadrático si hay solo una partícula (la variable partículas es un número)
     else:
         desplazamiento = r_data[:,particulas] - r_data[0,particulas,:]
         
@@ -269,7 +236,10 @@ def main(L, N, dt, tmax, pos0, vel0, cambio_velocidad=None, particula=0, archivo
 
     while t < tmax:
 
-        # Reescalada de velocidad 
+        # Se puede dar un cambio de velocidad en ciertos tiempos para cambiar la temperatura manualmente
+        # cambio_velocidad es un alista
+        # El primer elemento es el factor de aumento
+        # El segundo es una lista de los tiempos en los que ha de producirse
         if cambio_velocidad:
             reescalamiento, tiempos = cambio_velocidad
             for tiempo in tiempos:
@@ -332,7 +302,7 @@ particula = 4
 cambio_velocidad = (1.5, [20, 30, 35, 45])
 
 
-# main(L, N, dt, tmax, pos0, vel0, cambio_velocidad, particula, archivos=archivos, dir=dir)
+main(L, N, dt, tmax, pos0, vel0, cambio_velocidad, particula, archivos=archivos, dir=dir)
 
 
 # ---------------------- TRANSICIÓN LENTA -----------------------------

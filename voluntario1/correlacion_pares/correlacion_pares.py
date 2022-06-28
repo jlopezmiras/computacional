@@ -14,7 +14,9 @@ def safe_open_w(path):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     return open(path, 'w')
 
-
+# Función que evalúa el potencial de lennard Jones dado el vector
+# r que almacena todas las posiciones de todas las partículas
+# Tiene en cuenta las condiciones de contorno periódicas
 @njit
 def lennard_jones(L, r):
 
@@ -41,6 +43,8 @@ def lennard_jones(L, r):
     return acel
 
 
+# Función que calcula la distancia entre dos partículas en la caja con las condiciones de 
+# contorno periódicas
 @njit
 def calcula_distancia(L, r1, r2):
 
@@ -55,27 +59,11 @@ def calcula_distancia(L, r1, r2):
 
 
 # ALGORITMO DE VERLET (RESOLUCIÓN DE LA ECUACIÓN DIFERENCIAL)
-# --------------------------------------------------------------------------------------
-# Resuelve las ecuaciones del movimiento mediante el algoritmo de Verlet
-
-# Recibe la masa, la posición, la velocidad, el paso de tiempo y la aceleración:
-#   m (vector 1D: nplanets)   --> vector de la masa (reescalada) de cada planeta 
-#   r (vector 2D: nplanets,2) --> vector de vectores posicion (reescalados) de cada planeta 
-#   v (vector 2D: nplanets,2) --> vector de vectores velocidad (reescalados) de cada planeta 
-#   h (escalar)               --> paso de la simulación 
-#   a (vector 2D: nplanets,2) --> vector de vectores aceleración de cada planeta 
-#
-# Lleva a cabo el algoritmo de Verlet a partir de las posiciones, velocidades y aceleraciones calculadas
-# en el paso inmediatamente anterior y devolviendo las posiciones, velocidades y aceleraciones del 
-# paso siguiente
-# --------------------------------------------------------------------------------------
-# Utiliza el decorador @njit del módulo numba para ser compilado en tiempo real y 
-# mejorar el coste de tiempo
 @njit
 def Verlet(L, r, v, h, a):
     
     w = v + 0.5*h*a   
-    r += h * w    # posiciones actualizadas de los planetas con paso h
+    r += h * w    # posiciones actualizadas de las partículas con paso h
     r = r % L
     a = lennard_jones(L, r)   # aceleración actualizada a partir de las nuevas posiciones
     v = w + 0.5*h*a   # velocidades actualizadas con las nuevas aceleraciones
@@ -83,6 +71,9 @@ def Verlet(L, r, v, h, a):
     return r, v, a
 
 
+
+# Función para determinar las posiciones iniciales en función de si son aleatorias o 
+# se quieren en red cuadrada o hexagonal
 def posiciones_iniciales(N, L, shape="aleatorio", minimum_distance=0.85, iter_max = 1e6):
 
     n = int(m.sqrt(N))
@@ -129,31 +120,8 @@ def posiciones_iniciales(N, L, shape="aleatorio", minimum_distance=0.85, iter_ma
     return np.array(pos)
 
 
-@njit
-def calculo_energia_pot(L, r_data):
-
-    energia = np.zeros(len(r_data))
-
-    for time in range(len(r_data)):
-        r = r_data[time]
-        for i in range(len(r)):
-            for j in range(len(r)):
-
-                if j != i:
-
-                    dist, _ = calcula_distancia(L, r[i], r[j])
-                    # r_ij_x = np.array([r[j,0]-r[i,0], r[j,0]-r[i,0]+L, r[j,0]-r[i,0]-L])
-                    # r_ij_y = np.array([r[j,1]-r[i,1], r[j,1]-r[i,1]+L, r[j,1]-r[i,1]-L])
-
-                    # r_ij = np.array([r_ij_x[np.argmin(np.abs(r_ij_x))], r_ij_y[np.argmin(np.abs(r_ij_y))]])
-
-                    # dist = m.sqrt(r_ij[0]**2 + r_ij[1]**2)
-
-                    energia[time] += 4 * (dist**(-12) - dist**(-6))
-
-    return energia
-
-
+# Función para calcular promedios de un vector x tomando intervalos con
+# un número determinado de puntos (n_puntos)
 def promedios_temporales(x, n_puntos):
 
     extra = len(x) % n_puntos
@@ -162,6 +130,7 @@ def promedios_temporales(x, n_puntos):
     return y_mod
 
 
+# Cálculo de la temperatura
 def calculo_temperatura(N, v, t1, t2, dt):
 
      # CÁLCULO DE LAS ENERGÍAS
@@ -199,6 +168,7 @@ def main(L, N, dt, tmax, pos0, vel0, cambio_velocidad=(1.5, 6), particula=0, tie
     cuentas_tot = []
     temp_tot = []
 
+    # Simulación a distintas velocidades
     for ii in range(n_veces):
         t = 0
         contador = 0
@@ -219,6 +189,8 @@ def main(L, N, dt, tmax, pos0, vel0, cambio_velocidad=(1.5, 6), particula=0, tie
     
             t += dt
             contador += 1     
+
+        # Cálculo de la temperatura y función de correlación
         
         temp = calculo_temperatura(N, v_data, tmax-tiempo_medida, tmax, dt)
 
@@ -248,6 +220,8 @@ def main(L, N, dt, tmax, pos0, vel0, cambio_velocidad=(1.5, 6), particula=0, tie
 
         vel *= reescalamiento
 
+
+    # Gráfica comparativa de funciones de correlación para distintas temperaturas
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -285,18 +259,20 @@ archivos = {
     "graph_funcion_correlacion_temperatura" : "funcion_correlacion_temperatura"
     }
 
+# FUNCIONES DE CORRELACIÓN PARA ESTADO SÓLIDO Y LÍQUIDO
+
 # Cálculo de posiciones iniciales en red cuadrada y en reposo
 pos0 = posiciones_iniciales(N, L, shape="cuadrado")
 vel0 = np.zeros_like(pos0)
 
 particula = 1
-#cambio_velocidad = (1.5, [20, 30, 35, 45])
 
 main(L, N, dt, tmax, pos0, vel0, archivos=archivos, dir=path)
 
 
 
-# Sistema gaseoso
+# FUNCIONES DE CORRELACIÓN PARA ESTADO GASEOSO
+
 L = 10.
 N = 20
 
